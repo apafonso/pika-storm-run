@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pika Storm Run</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="sky-glow sky-glow-left"></div>
+  <div class="sky-glow sky-glow-right"></div>
+  <main class="layout">
+    <section class="info-panel">
+      <p class="eyebrow">Pokemon Platformer</p>
+      <h1>Pika Storm Run</h1>
+      <p class="lede">
+        A self-contained 25-level platform game inspired by Pokemon and classic side-scrollers.
+        Pick Pikachu, Charmander, or Squirtle, catch storm sparks, spend skill charges, and avoid shadow Pokemon.
+      </p>
+
+      <div class="panel-card">
+        <h2>Controls</h2>
+        <p><span class="key">A</span> <span class="key">D</span> or <span class="key">Left</span> <span class="key">Right</span> to move</p>
+        <p><span class="key">W</span> <span class="key">Up</span> or <span class="key">Space</span> to jump</p>
+        <p><span class="key">X</span> to use your Pokemon skill</p>
+        <p><span class="key">Enter</span> to use the main action button</p>
+      </div>
+
+      <div class="panel-card">
+        <h2>Choose Your Pokemon</h2>
+        <div class="character-picker" id="characterPicker"></div>
+      </div>
+
+      <div class="actions">
+        <button id="primaryButton" class="button button-primary">Start 25-Level Run</button>
+        <button id="restartButton" class="button button-secondary">Restart Level</button>
+      </div>
+
+      <p id="messageLine" class="message-line">Pick a Pokemon and press start.</p>
+    </section>
+
+    <section class="game-panel">
+      <div class="hud">
+        <div class="hud-item">
+          <span class="hud-label">Stage</span>
+          <strong id="levelValue">1 / 25</strong>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Critter</span>
+          <strong id="characterValue">Pikachu</strong>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Storms</span>
+          <strong id="stormValue">0 / 0</strong>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Skill</span>
+          <strong id="skillValue">0</strong>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Hearts</span>
+          <strong id="heartValue">4 / 4</strong>
+        </div>
+      </div>
+
+      <div class="canvas-shell">
+        <canvas id="gameCanvas" width="960" height="540" aria-label="Pika Storm Run game"></canvas>
+      </div>
+
+      <div class="panel-card progress-card">
+        <div class="progress-header">
+          <h2>25 Levels</h2>
+          <span id="levelName">Meadow Spark</span>
+        </div>
+        <div id="progressStrip" class="progress-strip"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
