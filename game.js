@@ -3,325 +3,193 @@ const ctx = canvas.getContext("2d");
 
 const primaryButton = document.getElementById("primaryButton");
 const restartButton = document.getElementById("restartButton");
-const newCampaignButton = document.getElementById("newCampaignButton");
 const messageLine = document.getElementById("messageLine");
 const characterPicker = document.getElementById("characterPicker");
-const campaignNote = document.getElementById("campaignNote");
 const progressStrip = document.getElementById("progressStrip");
 
 const levelValue = document.getElementById("levelValue");
-const worldValue = document.getElementById("worldValue");
 const characterValue = document.getElementById("characterValue");
-const partsValue = document.getElementById("partsValue");
-const powerValue = document.getElementById("powerValue");
+const stormValue = document.getElementById("stormValue");
+const skillValue = document.getElementById("skillValue");
 const heartValue = document.getElementById("heartValue");
-const bossValue = document.getElementById("bossValue");
 const levelName = document.getElementById("levelName");
 
 const VIEW_WIDTH = canvas.width;
 const VIEW_HEIGHT = canvas.height;
-const STAGE_COUNT = 100;
-const STAGES_PER_WORLD = 10;
-const BASE_GRAVITY = 0.58;
-
-const NORMAL_STAGE_NAMES = [
-  "Scout Path",
-  "Gear Grove",
-  "Ridge Relay",
-  "Vault Route",
-  "Spring Yard",
-  "Signal Run",
-  "Sky Steps",
-  "Hidden Shaft",
-  "Core Approach"
-];
+const GRAVITY = 0.55;
+const MAX_SKILL_CHARGES = 4;
 
 const CHARACTERS = [
   {
-    id: "pikachu",
+    id: "spark",
     name: "Pikachu",
-    title: "Fast electric scout",
-    blurb: "The quickest choice. Thunder Dash fires a bolt and launches Pikachu forward through danger.",
+    title: "Fast electric runner",
+    blurb: "A bright yellow speedster with a quick thunder dash for clearing gaps and blasting through danger.",
     skillName: "Thunder Dash",
-    resourceName: "Volt Cells",
-    passive: "Highest speed and strongest horizontal burst.",
-    speed: 5.7,
+    speed: 5.2,
     jump: 14.8,
-    basePowerCap: 6,
-    body: "#ffd84d",
-    accent: "#9f6200",
-    outline: "#3d2800",
-    powerColor: "#fff08a",
-    powerType: "dash"
+    body: "#ffd84c",
+    accent: "#9d5d00",
+    outline: "#3f2a00",
+    applySkill(player) {
+      const direction = player.facing || 1;
+      player.vx = 11.5 * direction;
+      player.vy = Math.min(player.vy, -2);
+      player.dashTimer = 15;
+      player.invulnerable = Math.max(player.invulnerable, 20);
+    }
   },
   {
-    id: "bulbasaur",
-    name: "Bulbasaur",
-    title: "Vine-climbing tactician",
-    blurb: "Steadier movement and a vertical vine lift. Great for tall levels and careful boss fights.",
-    skillName: "Vine Lift",
-    resourceName: "Seed Pods",
-    passive: "Best air control and an extra lift when the route goes vertical.",
-    speed: 4.85,
-    jump: 14.9,
-    basePowerCap: 6,
-    body: "#6cc66e",
-    accent: "#c13e67",
-    outline: "#143921",
-    powerColor: "#a8ff93",
-    powerType: "vine"
-  },
-  {
-    id: "charmander",
+    id: "blaze",
     name: "Charmander",
-    title: "Aggressive flame striker",
-    blurb: "Flame Burst gives a short hop and a harder-hitting fire shot. Best for beating bosses quickly.",
-    skillName: "Flame Burst",
-    resourceName: "Ember Stones",
-    passive: "Highest damage output and great for clearing enemy packs.",
-    speed: 5.05,
-    jump: 15.3,
-    basePowerCap: 6,
-    body: "#ff9651",
-    accent: "#ffdb7a",
-    outline: "#532717",
-    powerColor: "#ffbf5c",
-    powerType: "flame"
+    title: "High-jump striker",
+    blurb: "A fire-tailed climber that trades top speed for a powerful flame jump and extra reach.",
+    skillName: "Flame Jump",
+    speed: 4.75,
+    jump: 15.9,
+    body: "#ff8f4a",
+    accent: "#ffd76c",
+    outline: "#512515",
+    applySkill(player) {
+      player.vy = -18.2;
+      player.vx += (player.facing || 1) * 1.8;
+      player.invulnerable = Math.max(player.invulnerable, 12);
+    }
   },
   {
-    id: "squirtle",
+    id: "tide",
     name: "Squirtle",
-    title: "Shielded shell runner",
-    blurb: "Shell Spin creates a defensive slide and bubble shot. Safest pick in crowded stages.",
-    skillName: "Shell Spin",
-    resourceName: "Bubble Pearls",
-    passive: "Best defense, strongest recovery, and easier control in water zones.",
-    speed: 4.55,
-    jump: 14.2,
-    basePowerCap: 6,
-    body: "#63d8df",
-    accent: "#e6fff6",
-    outline: "#0b3540",
-    powerColor: "#b2fbff",
-    powerType: "shell"
+    title: "Steady shield glider",
+    blurb: "A steady shell-backed tank that can glide safely and shrug off contact while its shell is active.",
+    skillName: "Shell Glide",
+    speed: 4.35,
+    jump: 13.9,
+    body: "#41d7d0",
+    accent: "#e9fff6",
+    outline: "#09343c",
+    applySkill(player) {
+      player.shieldTimer = 92;
+      player.glideTimer = 92;
+      player.vy = Math.min(player.vy, -5.8);
+      player.invulnerable = Math.max(player.invulnerable, 18);
+    }
   }
 ];
 
-const WORLDS = [
-  {
-    name: "Viridian Fields",
-    featureName: "spring pads",
-    skyTop: "#84d7ff",
-    skyBottom: "#f6d56f",
-    hillA: "#2b885f",
-    hillB: "#1e5647",
-    groundTop: "#66cb73",
-    groundFace: "#765131",
-    platformTop: "#fff1b6",
-    platformFace: "#8a6137",
-    cloud: "rgba(255,255,255,0.72)",
-    gravity: 0.58,
-    wind: 0,
-    grip: 0.76,
-    springs: true
-  },
-  {
-    name: "Granite Gorges",
-    featureName: "crosswinds",
-    skyTop: "#78c6ff",
-    skyBottom: "#ff9b70",
-    hillA: "#59765f",
-    hillB: "#3c4c3e",
-    groundTop: "#c8d171",
-    groundFace: "#725135",
-    platformTop: "#ffe39d",
-    platformFace: "#845830",
-    cloud: "rgba(255,245,226,0.68)",
-    gravity: 0.58,
-    wind: 0.024,
-    grip: 0.75,
-    updrafts: true
-  },
-  {
-    name: "Neon Depot",
-    featureName: "tight machinery",
-    skyTop: "#5f8bff",
-    skyBottom: "#223251",
-    hillA: "#2c4f82",
-    hillB: "#1b2d4e",
-    groundTop: "#5bc58a",
-    groundFace: "#515160",
-    platformTop: "#dbe7ff",
-    platformFace: "#57637c",
-    cloud: "rgba(222,235,255,0.58)",
-    gravity: 0.57,
-    wind: 0.012,
-    grip: 0.78
-  },
-  {
-    name: "Frostbite Caves",
-    featureName: "icy footing",
-    skyTop: "#9fe7ff",
-    skyBottom: "#6ca7d8",
-    hillA: "#6bbbd2",
-    hillB: "#3d728c",
-    groundTop: "#d8f5ff",
-    groundFace: "#7e9aa8",
-    platformTop: "#f4fdff",
-    platformFace: "#9ab0bc",
-    cloud: "rgba(240,250,255,0.66)",
-    gravity: 0.56,
-    wind: 0.01,
-    grip: 0.56
-  },
-  {
-    name: "Canopy Lifts",
-    featureName: "tall climbs",
-    skyTop: "#9cf0d3",
-    skyBottom: "#47c19d",
-    hillA: "#3b9c70",
-    hillB: "#235d47",
-    groundTop: "#90e28a",
-    groundFace: "#5f4d37",
-    platformTop: "#fff0c6",
-    platformFace: "#816342",
-    cloud: "rgba(245,255,248,0.74)",
-    gravity: 0.54,
-    wind: 0,
-    grip: 0.8,
-    springs: true
-  },
-  {
-    name: "Magma Junction",
-    featureName: "heat vents",
-    skyTop: "#ffb96d",
-    skyBottom: "#ff5d4b",
-    hillA: "#83563f",
-    hillB: "#4f3028",
-    groundTop: "#b9cf67",
-    groundFace: "#764f35",
-    platformTop: "#ffe89f",
-    platformFace: "#8b5a2d",
-    cloud: "rgba(255,247,232,0.62)",
-    gravity: 0.57,
-    wind: 0.018,
-    grip: 0.74,
-    updrafts: true
-  },
-  {
-    name: "Indigo Harbor",
-    featureName: "water basins",
-    skyTop: "#7ad1ff",
-    skyBottom: "#3d75dd",
-    hillA: "#2f7b89",
-    hillB: "#1c4d5d",
-    groundTop: "#74cd86",
-    groundFace: "#6d5439",
-    platformTop: "#d7f2ff",
-    platformFace: "#5e7d92",
-    cloud: "rgba(231,246,255,0.64)",
-    gravity: 0.55,
-    wind: 0.01,
-    grip: 0.75,
-    water: true
-  },
-  {
-    name: "Thunder Peaks",
-    featureName: "storm gusts",
-    skyTop: "#607dff",
-    skyBottom: "#171d3e",
-    hillA: "#324d8d",
-    hillB: "#202f56",
-    groundTop: "#67bf77",
-    groundFace: "#554736",
-    platformTop: "#d5ddff",
-    platformFace: "#5d6182",
-    cloud: "rgba(226,232,255,0.6)",
-    gravity: 0.56,
-    wind: 0.03,
-    grip: 0.73,
-    updrafts: true
-  },
-  {
-    name: "Sky Fortress",
-    featureName: "low gravity",
-    skyTop: "#bfe4ff",
-    skyBottom: "#7f95e8",
-    hillA: "#6887b2",
-    hillB: "#46608a",
-    groundTop: "#cfdc89",
-    groundFace: "#6f6242",
-    platformTop: "#fff7d2",
-    platformFace: "#8a7754",
-    cloud: "rgba(246,251,255,0.74)",
-    gravity: 0.49,
-    wind: 0.012,
-    grip: 0.79
-  },
-  {
-    name: "Psi Citadel",
-    featureName: "warped physics",
-    skyTop: "#c091ff",
-    skyBottom: "#28174b",
-    hillA: "#5f3f8b",
-    hillB: "#342154",
-    groundTop: "#87cf84",
-    groundFace: "#5e4b3a",
-    platformTop: "#f2ddff",
-    platformFace: "#7d6291",
-    cloud: "rgba(245,231,255,0.6)",
-    gravity: 0.53,
-    wind: 0.02,
-    grip: 0.7,
-    updrafts: true
-  }
+const LEVEL_NAMES = [
+  "Meadow Spark",
+  "Cloud Ladder",
+  "Gusty Orchard",
+  "Lantern Ridge",
+  "Bolt Bridge",
+  "Amber Canyon",
+  "Rainstep Run",
+  "Mosswire Pass",
+  "Skydrop Basin",
+  "Cyclone Steps",
+  "Cinder Boardwalk",
+  "Moonlit Vines",
+  "Static Cliffs",
+  "Thunder Hollow",
+  "Wild Current",
+  "Tempest Quarry",
+  "Shimmer Heights",
+  "Night Flash Yard",
+  "Stormcoil Woods",
+  "Echo Plateau",
+  "Crackle Ravine",
+  "Highwind Ascent",
+  "Afterglow Tunnels",
+  "Skyforge Sprint",
+  "Crown of Storms"
 ];
 
-const BOSSES = [
-  { name: "Meowth", pattern: "pouncer", hp: 10, color: "#f1ca8e", accent: "#7a4d25" },
-  { name: "Lapras", pattern: "wave", hp: 14, color: "#6db7ff", accent: "#e8f8ff" },
-  { name: "Arbok", pattern: "shooter", hp: 16, color: "#9772d6", accent: "#fee181" },
-  { name: "Scyther", pattern: "pouncer", hp: 18, color: "#9ed861", accent: "#4e6b2e" },
-  { name: "Gengar", pattern: "teleport", hp: 20, color: "#6842ae", accent: "#f45aa4" },
-  { name: "Snorlax", pattern: "tank", hp: 24, color: "#5f84a1", accent: "#fff0de" },
-  { name: "Gyarados", pattern: "wave", hp: 26, color: "#4f93ff", accent: "#ffe2ab" },
-  { name: "Charizard", pattern: "pouncer", hp: 28, color: "#ff8b49", accent: "#ffd173" },
-  { name: "Dragonite", pattern: "shooter", hp: 30, color: "#dca362", accent: "#93d9ff" },
-  { name: "Mewtwo", pattern: "teleport", hp: 36, color: "#d6c4ff", accent: "#8a58ff" }
+const THEMES = [
+  {
+    skyTop: "#85d4ff",
+    skyBottom: "#f8c166",
+    mist: "#ffffff",
+    hillA: "#2b7c5f",
+    hillB: "#1f5448",
+    groundTop: "#50c173",
+    groundFace: "#78522d",
+    platformTop: "#fff3be",
+    platformFace: "#8e6237",
+    cloud: "rgba(255,255,255,0.72)"
+  },
+  {
+    skyTop: "#7fc8ff",
+    skyBottom: "#ff9e7d",
+    mist: "#fff2d8",
+    hillA: "#3f7f6b",
+    hillB: "#295345",
+    groundTop: "#6dc36d",
+    groundFace: "#6d482c",
+    platformTop: "#fce2a8",
+    platformFace: "#805431",
+    cloud: "rgba(255,248,231,0.7)"
+  },
+  {
+    skyTop: "#4d7bfd",
+    skyBottom: "#162242",
+    mist: "#bfd3ff",
+    hillA: "#234568",
+    hillB: "#172d49",
+    groundTop: "#3a8a74",
+    groundFace: "#554330",
+    platformTop: "#d8e6ff",
+    platformFace: "#4d5e78",
+    cloud: "rgba(226,237,255,0.62)"
+  },
+  {
+    skyTop: "#a0f0dc",
+    skyBottom: "#4bb9b3",
+    mist: "#ebfffd",
+    hillA: "#3e9589",
+    hillB: "#1c605b",
+    groundTop: "#84da87",
+    groundFace: "#5b4f34",
+    platformTop: "#fff0cf",
+    platformFace: "#7c6446",
+    cloud: "rgba(244,255,255,0.75)"
+  },
+  {
+    skyTop: "#ffd27e",
+    skyBottom: "#ff6e55",
+    mist: "#fff1dd",
+    hillA: "#666444",
+    hillB: "#413a2d",
+    groundTop: "#b5c35d",
+    groundFace: "#705336",
+    platformTop: "#fff0af",
+    platformFace: "#885d31",
+    cloud: "rgba(255,247,232,0.68)"
+  }
 ];
 
 const game = {
   screen: "menu",
   selectedCharacterId: CHARACTERS[0].id,
-  stageTemplates: [],
-  currentStage: null,
-  stageIndex: 0,
+  levelTemplates: [],
+  currentLevel: null,
+  levelIndex: 0,
   highestUnlocked: 0,
-  stageResults: Array.from({ length: STAGE_COUNT }, () => null),
+  levelResults: Array.from({ length: LEVEL_NAMES.length }, () => null),
   player: null,
-  projectiles: [],
-  cameraX: 0,
-  tick: 0,
   input: {
     left: false,
     right: false,
     jumpHeld: false,
     jumpQueued: false,
-    powerQueued: false
+    skillQueued: false
   },
+  cameraX: 0,
+  tick: 0,
   notice: {
-    text: "Choose a Pokemon. The choice locks for the whole run.",
+    text: "Pick a Pokemon and press start.",
     timer: -1
   },
-  recoveryTimer: 0,
-  campaign: {
-    lockedCharacterId: null,
-    maxHearts: 5,
-    powerCap: 6,
-    cores: 0,
-    totalParts: 0,
-    totalPowerDrops: 0
-  }
+  recoveryTimer: 0
 };
 
 function createRng(seed) {
@@ -336,50 +204,60 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function range(count, fn) {
+  return Array.from({ length: count }, (_, index) => fn(index));
+}
+
+function cloneLevel(level) {
+  return JSON.parse(JSON.stringify(level));
+}
+
 function rectsOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-function cloneStage(stage) {
-  return JSON.parse(JSON.stringify(stage));
-}
-
-function getCurrentCharacterId() {
-  return game.campaign.lockedCharacterId || game.selectedCharacterId;
-}
-
-function getCharacter(id = getCurrentCharacterId()) {
+function getCharacter(id = game.selectedCharacterId) {
   return CHARACTERS.find((character) => character.id === id);
 }
 
-function getWorld(index = game.stageIndex) {
-  return WORLDS[Math.floor(index / STAGES_PER_WORLD)];
-}
-
-function getStageNumberInWorld(index = game.stageIndex) {
-  return (index % STAGES_PER_WORLD) + 1;
-}
-
-function isBossStage(index = game.stageIndex) {
-  return getStageNumberInWorld(index) === STAGES_PER_WORLD;
-}
-
-function getStageName(index) {
-  const world = getWorld(index);
-  const stageInWorld = getStageNumberInWorld(index);
-  if (stageInWorld === STAGES_PER_WORLD) {
-    return `${world.name}: ${BOSSES[Math.floor(index / STAGES_PER_WORLD)].name} Lair`;
+function defaultMessage() {
+  const character = getCharacter();
+  if (game.screen === "menu") {
+    return `Pick a Pokemon, then start the 25-level run. ${character.skillName} is mapped to X.`;
   }
-  return `${world.name}: ${NORMAL_STAGE_NAMES[stageInWorld - 1]}`;
-}
-
-function getPowerItemName() {
-  return getCharacter().resourceName;
+  if (game.screen === "paused") {
+    return "Paused. Press Enter or click Resume to continue.";
+  }
+  if (game.screen === "stageClear") {
+    return "Stage clear. Press Enter or click Next Level.";
+  }
+  if (game.screen === "gameComplete") {
+    const totals = getRunTotals();
+    return `All 25 stages cleared. Total storm sparks: ${totals.storms}. Click Play Again to restart the full run.`;
+  }
+  if (game.screen === "recovering") {
+    return "The shadows caught you. Restarting the stage...";
+  }
+  if (!game.currentLevel || !game.player) {
+    return "Pick a Pokemon and press start.";
+  }
+  const needed = Math.max(0, game.currentLevel.requiredStorms - game.player.stormsCollected);
+  if (needed > 0) {
+    return `Collect ${needed} more storm sparks to open the gate. ${character.skillName} uses one skill charge.`;
+  }
+  return "The storm gate is active. Reach the glowing arch to clear the stage.";
 }
 
 function showNotice(text, timer = 140) {
   game.notice.text = text;
   game.notice.timer = timer;
+}
+
+function getMessageLine() {
+  if (game.notice.timer !== 0) {
+    return game.notice.text;
+  }
+  return defaultMessage();
 }
 
 function tickNotice() {
@@ -392,165 +270,54 @@ function tickNotice() {
 }
 
 function getRunTotals() {
-  return game.stageResults.reduce(
+  return game.levelResults.reduce(
     (totals, result) => {
-      if (!result) {
-        return totals;
+      if (result) {
+        totals.storms += result.storms;
+        totals.skills += result.skills;
       }
-      totals.parts += result.parts;
-      totals.powerDrops += result.powerDrops;
-      totals.bosses += result.bossStage ? 1 : 0;
       return totals;
     },
-    { parts: 0, powerDrops: 0, bosses: 0 }
+    { storms: 0, skills: 0 }
   );
 }
 
-function defaultMessage() {
-  const character = getCharacter();
-  if (game.screen === "menu") {
-    return `Choose a Pokemon and start the 100-level campaign. ${character.skillName} uses X, and the choice locks until New Campaign.`;
-  }
-  if (game.screen === "paused") {
-    return "Paused. Press Enter or click Resume to continue.";
-  }
-  if (game.screen === "stageClear") {
-    return "Stage clear. Press Enter or click Next Stage.";
-  }
-  if (game.screen === "gameComplete") {
-    const totals = getRunTotals();
-    return `Campaign complete with ${character.name}. Parts found: ${totals.parts}. Bosses beaten: ${totals.bosses}.`;
-  }
-  if (game.screen === "recovering") {
-    return "You were knocked out. Restarting the stage...";
-  }
-  if (!game.currentStage || !game.player) {
-    return "Choose a Pokemon. The choice locks for the whole run.";
-  }
-  if (game.currentStage.bossStage && game.currentStage.boss && !game.currentStage.boss.defeated) {
-    return `Defeat ${game.currentStage.boss.name}, grab the Core Part, and reach the gate.`;
-  }
-  const remaining = Math.max(0, game.currentStage.partsRequired - game.player.partsCollected);
-  if (remaining > 0) {
-    return `Collect ${remaining} more comet parts to open the exit. ${character.resourceName} power your skill.`;
-  }
-  return "The exit gate is active. Reach the arch to clear the stage.";
-}
-
-function getMessageLine() {
-  if (game.notice.timer !== 0) {
-    return game.notice.text;
-  }
-  return defaultMessage();
-}
-
-function resetCampaignState() {
-  const character = getCharacter(game.selectedCharacterId);
-  game.campaign.lockedCharacterId = null;
-  game.campaign.maxHearts = 5;
-  game.campaign.powerCap = character.basePowerCap;
-  game.campaign.cores = 0;
-  game.campaign.totalParts = 0;
-  game.campaign.totalPowerDrops = 0;
-  game.stageResults = Array.from({ length: STAGE_COUNT }, () => null);
-  game.highestUnlocked = 0;
-}
-
-function createPlayer(character, spawn) {
-  return {
-    x: spawn.x,
-    y: spawn.y,
-    w: character.id === "squirtle" ? 42 : 38,
-    h: character.id === "bulbasaur" ? 40 : 38,
-    vx: 0,
-    vy: 0,
-    facing: 1,
-    onGround: false,
-    coyote: 0,
-    jumpBuffer: 0,
-    invulnerable: 0,
-    powerCooldown: 0,
-    dashTimer: 0,
-    shieldTimer: 0,
-    burnTimer: 0,
-    vineLiftReady: true,
-    hearts: game.campaign.maxHearts,
-    maxHearts: game.campaign.maxHearts,
-    power: game.campaign.powerCap,
-    powerMax: game.campaign.powerCap,
-    partsCollected: 0,
-    powerDropsCollected: 0,
-    animationStep: 0
-  };
-}
-
-function makeCollectible(kind, x, y) {
-  const size = kind === "heart" ? 20 : kind === "core" ? 24 : 20;
-  return {
-    kind,
-    x,
-    y,
-    w: size,
-    h: size,
-    collected: false
-  };
-}
-
-function addGroundAnchors(pool, stage, countPerSegment = 3) {
-  stage.ground.forEach((segment) => {
-    if (segment.w < 160) {
-      return;
-    }
-    for (let index = 0; index < countPerSegment; index += 1) {
-      const t = countPerSegment === 1 ? 0.5 : index / (countPerSegment - 1);
-      pool.push({
-        x: segment.x + 60 + t * Math.max(10, segment.w - 120),
-        y: stage.baseY - 36
-      });
-    }
-  });
-}
-
-function addPlatformAnchors(pool, stage) {
-  stage.platforms.forEach((platform) => {
-    const count = clamp(Math.floor(platform.w / 60), 1, 3);
-    for (let index = 0; index < count; index += 1) {
-      const t = count === 1 ? 0.5 : index / (count - 1);
-      pool.push({
-        x: platform.x + 20 + t * Math.max(10, platform.w - 40),
-        y: platform.y - 28
-      });
-    }
-  });
-}
-
-function shuffleInPlace(items, rng) {
-  for (let index = items.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(rng() * (index + 1));
-    [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+function addLineCollectibles(target, kind, x, y, count, spacing) {
+  for (let index = 0; index < count; index += 1) {
+    target.push({
+      kind,
+      x: x + index * spacing,
+      y: y + Math.sin(index * 0.8) * 6,
+      w: kind === "storm" ? 18 : 20,
+      h: kind === "storm" ? 18 : 20,
+      collected: false
+    });
   }
 }
 
-function buildNormalStage(index) {
-  const world = getWorld(index);
-  const rng = createRng(5000 + index * 131);
-  const stageInWorld = getStageNumberInWorld(index);
-  const worldIndex = Math.floor(index / STAGES_PER_WORLD);
-  const difficulty = worldIndex + stageInWorld * 0.5;
-  const worldWidth = 2150 + worldIndex * 110 + stageInWorld * 72;
-  const baseY = 476;
+function pointOverPit(pits, x) {
+  return pits.some((pit) => x > pit.start && x < pit.end);
+}
+
+function buildLevel(index) {
+  const rng = createRng(1017 + index * 73);
+  const stage = index + 1;
+  const worldWidth = 2150 + index * 125 + Math.floor(index / 5) * 60;
+  const baseY = 472;
+  const theme = THEMES[index % THEMES.length];
 
   const pits = [];
-  let cursor = 380;
-  const pitCount = clamp(1 + Math.floor(difficulty / 2), 1, 6);
+  const pitCount = Math.min(6, Math.max(0, Math.floor((stage - 2) / 4)));
+  let cursor = 420;
+
   for (let pitIndex = 0; pitIndex < pitCount; pitIndex += 1) {
-    const start = cursor + 180 + Math.floor(rng() * 170);
-    const width = 92 + Math.floor(rng() * 40) + worldIndex * 5 + stageInWorld * 3;
-    if (start + width > worldWidth - 360) {
+    const gapStart = cursor + 260 + Math.floor(rng() * 200);
+    const gapWidth = 96 + Math.floor(rng() * 48) + Math.floor(index * 3.5);
+    if (gapStart + gapWidth > worldWidth - 360) {
       break;
     }
-    pits.push({ start, end: start + width });
-    cursor = start + width;
+    pits.push({ start: gapStart, end: gapStart + gapWidth });
+    cursor = gapStart + gapWidth;
   }
 
   const ground = [];
@@ -560,7 +327,7 @@ function buildNormalStage(index) {
       x: segmentStart,
       y: baseY,
       w: pit.start - segmentStart,
-      h: VIEW_HEIGHT - baseY + 60
+      h: VIEW_HEIGHT - baseY + 40
     });
     segmentStart = pit.end;
   });
@@ -568,362 +335,245 @@ function buildNormalStage(index) {
     x: segmentStart,
     y: baseY,
     w: worldWidth - segmentStart,
-    h: VIEW_HEIGHT - baseY + 60
+    h: VIEW_HEIGHT - baseY + 40
   });
 
   const platforms = [];
   pits.forEach((pit, pitIndex) => {
+    const bridgeHeight = baseY - 112 - (pitIndex % 2) * 34;
     platforms.push({
       x: pit.start - 18,
-      y: baseY - 112 - (pitIndex % 2) * 34,
+      y: bridgeHeight,
       w: pit.end - pit.start + 36,
       h: 18
     });
-    if (worldIndex > 3) {
+    if (stage > 8) {
       platforms.push({
-        x: (pit.start + pit.end) / 2 - 52,
-        y: baseY - 190 - (pitIndex % 2) * 18,
-        w: 104,
+        x: (pit.start + pit.end) / 2 - 54,
+        y: bridgeHeight - 72,
+        w: 108,
         h: 18
       });
     }
   });
 
-  const platformCount = 7 + worldIndex + stageInWorld;
-  for (let platformIndex = 0; platformIndex < platformCount; platformIndex += 1) {
-    const w = 96 + Math.floor(rng() * 70);
-    let x = 120 + platformIndex * ((worldWidth - 240) / platformCount) + (rng() - 0.5) * 90;
+  const extraPlatformCount = 6 + Math.floor(stage * 0.65);
+  const spacing = (worldWidth - 360) / extraPlatformCount;
+
+  for (let platformIndex = 0; platformIndex < extraPlatformCount; platformIndex += 1) {
+    let x = 180 + platformIndex * spacing + (rng() - 0.5) * 95;
     const y =
       baseY -
-      84 -
-      (platformIndex % 4) * 46 -
-      (worldIndex > 4 && platformIndex % 3 === 0 ? 26 : 0) -
-      (world.name === "Canopy Lifts" ? 20 : 0);
-    x = clamp(x, 80, worldWidth - w - 100);
-    const overPit = pits.some((pit) => x + w * 0.5 > pit.start && x + w * 0.5 < pit.end);
-    if (overPit) {
+      95 -
+      ((platformIndex + stage) % 4) * 42 -
+      (stage > 14 && platformIndex % 3 === 0 ? 22 : 0);
+    const w = 112 + Math.floor(rng() * 70);
+    x = clamp(x, 110, worldWidth - w - 110);
+
+    if (pointOverPit(pits, x + w / 2)) {
       continue;
     }
+
     platforms.push({ x, y, w, h: 18 });
 
-    if (stageInWorld > 4 && platformIndex % 4 === 1) {
-      const upperWidth = Math.max(74, w - 26);
+    if (stage > 10 && platformIndex % 4 === 1) {
+      const upperWidth = Math.max(76, w - 28);
       platforms.push({
         x: x + (w - upperWidth) / 2,
-        y: y - 78,
+        y: y - 80,
         w: upperWidth,
         h: 18
       });
     }
   }
 
-  const springs = [];
-  const updrafts = [];
-  const waterZones = [];
-
-  if (world.springs) {
-    const springTargets = [...ground.slice(1, 3), ...platforms.filter((platform) => platform.w > 110)];
-    springTargets.slice(0, 4).forEach((target, index) => {
-      springs.push({
-        x: target.x + Math.max(8, target.w * 0.5 - 20),
-        y: target.y - 10,
-        w: 40,
-        h: 10,
-        power: 17 + index
-      });
-    });
-  }
-
-  if (world.updrafts) {
-    const driftTargets = [...pits, ...ground.filter((segment) => segment.w > 200).slice(0, 2)];
-    driftTargets.slice(0, 4).forEach((target, index) => {
-      const x = target.start ? target.start + 10 : target.x + target.w * 0.35;
-      const width = target.start ? target.end - target.start - 20 : 90;
-      updrafts.push({
-        x,
-        y: baseY - 170 - index * 12,
-        w: Math.max(70, width),
-        h: 180 + index * 12,
-        strength: 0.22 + index * 0.015
-      });
-    });
-  }
-
-  if (world.water) {
-    ground.filter((segment) => segment.w > 230).slice(1, 4).forEach((segment) => {
-      waterZones.push({
-        x: segment.x + 42,
-        y: baseY - 36,
-        w: Math.max(120, segment.w - 84),
-        h: 86
-      });
-    });
-  }
-
-  const stage = {
-    index,
-    stage: index + 1,
-    worldIndex,
-    stageInWorld,
-    name: getStageName(index),
-    world,
-    bossStage: false,
-    worldWidth,
-    baseY,
-    spawn: { x: 84, y: baseY - 74 },
-    ground,
-    platforms,
-    springs,
-    updrafts,
-    waterZones,
-    collectibles: [],
-    enemies: [],
-    partsRequired: clamp(3 + worldIndex + Math.floor(stageInWorld / 3), 3, 8),
-    goal: {
-      x: worldWidth - 130,
-      y: baseY - 120,
-      w: 58,
-      h: 120
+  const collectibles = [];
+  ground.forEach((segment, segmentIndex) => {
+    const safeStart = segmentIndex === 0 ? 160 : 48;
+    if (segment.w < 180) {
+      return;
     }
-  };
+    const count = clamp(Math.floor(segment.w / 170), 2, 5);
+    const spread = (segment.w - safeStart - 50) / Math.max(1, count - 1);
+    addLineCollectibles(collectibles, "storm", segment.x + safeStart, baseY - 36, count, spread);
+  });
 
-  const anchorPool = [];
-  addGroundAnchors(anchorPool, stage, 3);
-  addPlatformAnchors(anchorPool, stage);
-  shuffleInPlace(anchorPool, rng);
+  platforms.forEach((platform, platformIndex) => {
+    const count = clamp(Math.floor(platform.w / 46), 2, 4);
+    const offset = count === 1 ? platform.w / 2 : 20;
+    const spacingSize = count === 1 ? 0 : (platform.w - 40) / (count - 1);
+    addLineCollectibles(collectibles, "storm", platform.x + offset, platform.y - 26, count, spacingSize);
 
-  for (let indexPart = 0; indexPart < stage.partsRequired; indexPart += 1) {
-    const anchor = anchorPool.shift();
-    if (anchor) {
-      stage.collectibles.push(makeCollectible("part", anchor.x, anchor.y));
+    if ((platformIndex + stage) % 4 === 0) {
+      collectibles.push({
+        kind: "skill",
+        x: platform.x + platform.w / 2 - 10,
+        y: platform.y - 70,
+        w: 20,
+        h: 20,
+        collected: false
+      });
     }
-  }
+  });
 
-  const powerCount = 4 + Math.floor(stageInWorld / 3);
-  for (let powerIndex = 0; powerIndex < powerCount; powerIndex += 1) {
-    const anchor = anchorPool.shift();
-    if (anchor) {
-      stage.collectibles.push(makeCollectible("power", anchor.x, anchor.y - 8));
-    }
-  }
+  pits.forEach((pit) => {
+    collectibles.push({
+      kind: "skill",
+      x: (pit.start + pit.end) / 2 - 10,
+      y: baseY - 170,
+      w: 20,
+      h: 20,
+      collected: false
+    });
+  });
 
-  if (anchorPool[0]) {
-    stage.collectibles.push(makeCollectible("heart", anchorPool[0].x, anchorPool[0].y - 10));
-  }
-
-  const enemySurfaces = [
-    ...ground.filter((segment) => segment.w > 180).map((segment) => ({
-      x: segment.x + 12,
-      maxX: segment.x + segment.w - 48,
-      y: segment.y - 34
-    })),
-    ...platforms.filter((platform) => platform.w > 100).map((platform) => ({
-      x: platform.x + 10,
-      maxX: platform.x + platform.w - 42,
-      y: platform.y - 34
-    }))
+  const enemyCandidates = [
+    ...ground
+      .filter((segment) => segment.w > 180)
+      .map((segment) => ({
+        x: segment.x,
+        y: segment.y,
+        w: segment.w,
+        h: segment.h
+      })),
+    ...platforms
+      .filter((platform) => platform.w > 110)
+      .map((platform) => ({
+        x: platform.x,
+        y: platform.y,
+        w: platform.w,
+        h: platform.h
+      }))
   ];
 
-  const enemyCount = clamp(4 + worldIndex + Math.floor(stageInWorld / 2), 4, 10);
-  for (let enemyIndex = 0; enemyIndex < enemyCount && enemyIndex < enemySurfaces.length; enemyIndex += 1) {
-    const surface = enemySurfaces[enemyIndex];
-    const pattern = ["runner", "hopper", "flyer", "tank"][(enemyIndex + worldIndex) % 4];
-    stage.enemies.push({
-      type: pattern,
-      x: surface.x + rng() * Math.max(8, surface.maxX - surface.x),
-      y: pattern === "flyer" ? surface.y - 48 : surface.y,
-      w: pattern === "tank" ? 40 : 34,
-      h: pattern === "flyer" ? 30 : 34,
-      hp: pattern === "tank" ? 3 : pattern === "flyer" ? 2 : 1,
-      maxHp: pattern === "tank" ? 3 : pattern === "flyer" ? 2 : 1,
+  const enemies = [];
+  const enemyCount = Math.min(enemyCandidates.length, 3 + Math.floor(stage * 0.5));
+  const used = new Set();
+
+  for (let enemyIndex = 0; enemyIndex < enemyCount; enemyIndex += 1) {
+    let choiceIndex = Math.floor(rng() * enemyCandidates.length);
+    while (used.has(choiceIndex)) {
+      choiceIndex = (choiceIndex + 1) % enemyCandidates.length;
+    }
+    used.add(choiceIndex);
+
+    const surface = enemyCandidates[choiceIndex];
+    if (surface.x < 180 || surface.x > worldWidth - 260) {
+      continue;
+    }
+
+    const type = stage > 11 && enemyIndex % 3 === 0 ? "stalker" : "patrol";
+    enemies.push({
+      type,
+      x: surface.x + 22 + rng() * Math.max(18, surface.w - 66),
+      y: surface.y - 36,
+      w: 36,
+      h: 36,
+      minX: surface.x + 12,
+      maxX: surface.x + surface.w - 48,
       dir: rng() < 0.5 ? -1 : 1,
-      speed: 1.25 + rng() * 0.7 + worldIndex * 0.05,
-      minX: surface.x,
-      maxX: surface.maxX,
-      homeY: pattern === "flyer" ? surface.y - 48 : surface.y,
-      surfaceY: surface.y,
+      speed: 1.25 + rng() * 0.65 + stage * 0.035,
       phase: rng() * Math.PI * 2,
-      cooldown: 40 + Math.floor(rng() * 80),
-      invulnerable: 0,
       defeated: false
     });
   }
 
-  return stage;
-}
-
-function createBoss(worldIndex, worldWidth, baseY) {
-  const spec = BOSSES[worldIndex];
-  const hoverBoss = spec.pattern === "wave" || spec.pattern === "teleport";
-  const bossHeight = spec.pattern === "tank" ? 92 : spec.pattern === "wave" ? 84 : 78;
-  return {
-    name: spec.name,
-    pattern: spec.pattern,
-    color: spec.color,
-    accent: spec.accent,
-    maxHp: spec.hp,
-    hp: spec.hp,
-    x: worldWidth - 430,
-    y: hoverBoss ? baseY - 160 : baseY - bossHeight,
-    w: spec.pattern === "tank" ? 104 : 82,
-    h: bossHeight,
-    vx: 0,
-    vy: 0,
-    dir: -1,
-    phase: 0,
-    cooldown: 70,
-    invulnerable: 0,
-    defeated: false,
-    groundY: baseY - bossHeight,
-    baseY: hoverBoss ? baseY - 160 : baseY - bossHeight,
-    chargeTimer: 0
+  const stormCount = collectibles.filter((item) => item.kind === "storm").length;
+  const requiredStorms = Math.max(8, Math.floor(stormCount * 0.7));
+  const lastSegment = ground[ground.length - 1];
+  const goal = {
+    x: Math.max(worldWidth - 150, lastSegment.x + lastSegment.w - 120),
+    y: baseY - 126,
+    w: 56,
+    h: 126
   };
-}
-
-function buildBossStage(index) {
-  const world = getWorld(index);
-  const worldIndex = Math.floor(index / STAGES_PER_WORLD);
-  const baseY = 476;
-  const worldWidth = 1880 + worldIndex * 90;
-
-  const ground = [
-    { x: 0, y: baseY, w: worldWidth, h: VIEW_HEIGHT - baseY + 60 }
-  ];
-
-  const platforms = [
-    { x: 240, y: baseY - 96, w: 126, h: 18 },
-    { x: 470, y: baseY - 168, w: 132, h: 18 },
-    { x: 760, y: baseY - 118, w: 138, h: 18 },
-    { x: 1080, y: baseY - 170, w: 126, h: 18 },
-    { x: 1400, y: baseY - 100, w: 142, h: 18 }
-  ];
-
-  const springs = world.springs
-    ? [
-        { x: 276, y: baseY - 10, w: 40, h: 10, power: 19 },
-        { x: 1180, y: baseY - 10, w: 40, h: 10, power: 19 }
-      ]
-    : [];
-
-  const updrafts = world.updrafts
-    ? [
-        { x: 620, y: baseY - 210, w: 120, h: 220, strength: 0.25 },
-        { x: 1310, y: baseY - 200, w: 120, h: 210, strength: 0.24 }
-      ]
-    : [];
-
-  const waterZones = world.water
-    ? [{ x: 650, y: baseY - 38, w: 420, h: 90 }]
-    : [];
-
-  const collectibles = [
-    makeCollectible("power", 320, baseY - 140),
-    makeCollectible("power", 610, baseY - 210),
-    makeCollectible("power", 1215, baseY - 210),
-    makeCollectible("heart", 1520, baseY - 146)
-  ];
 
   return {
     index,
-    stage: index + 1,
-    worldIndex,
-    stageInWorld: STAGES_PER_WORLD,
-    name: getStageName(index),
-    world,
-    bossStage: true,
+    name: LEVEL_NAMES[index],
+    stage,
+    theme,
     worldWidth,
     baseY,
-    spawn: { x: 90, y: baseY - 74 },
+    spawn: {
+      x: 84,
+      y: baseY - 74
+    },
     ground,
     platforms,
-    springs,
-    updrafts,
-    waterZones,
     collectibles,
-    enemies: [],
-    partsRequired: 1,
-    boss: createBoss(worldIndex, worldWidth, baseY),
-    coreDropped: false,
-    goal: {
-      x: worldWidth - 128,
-      y: baseY - 120,
-      w: 58,
-      h: 120
-    }
+    enemies,
+    pits,
+    goal,
+    requiredStorms,
+    totalStorms: stormCount
   };
 }
 
-function buildStage(index) {
-  return isBossStage(index) ? buildBossStage(index) : buildNormalStage(index);
+function createPlayer(character, spawn) {
+  return {
+    x: spawn.x,
+    y: spawn.y,
+    w: character.id === "tide" ? 42 : 38,
+    h: character.id === "tide" ? 40 : 38,
+    vx: 0,
+    vy: 0,
+    facing: 1,
+    onGround: false,
+    coyote: 0,
+    jumpBuffer: 0,
+    dashTimer: 0,
+    shieldTimer: 0,
+    glideTimer: 0,
+    invulnerable: 0,
+    hearts: 4,
+    stormsCollected: 0,
+    skillCharges: 1,
+    skillMotesCollected: 0,
+    animationStep: 0
+  };
 }
 
-function getSurfaceRects() {
-  return [...game.currentStage.ground, ...game.currentStage.platforms];
-}
-
-function loadStage(index) {
-  game.stageIndex = index;
-  game.currentStage = cloneStage(game.stageTemplates[index]);
-  game.player = createPlayer(getCharacter(), game.currentStage.spawn);
-  game.projectiles = [];
+function loadLevel(index) {
+  game.levelIndex = index;
+  game.currentLevel = cloneLevel(game.levelTemplates[index]);
+  game.player = createPlayer(getCharacter(), game.currentLevel.spawn);
   game.cameraX = 0;
-  game.screen = game.campaign.lockedCharacterId ? "playing" : "menu";
-  showNotice(`${game.currentStage.name}. ${game.currentStage.bossStage ? "Boss stage." : `Collect ${game.currentStage.partsRequired} comet parts.`}`, 180);
-  updateHud();
-  updateButtons();
-  updateCampaignNote();
-  renderProgressStrip();
-}
-
-function startCampaign() {
-  game.campaign.lockedCharacterId = game.selectedCharacterId;
-  const character = getCharacter();
-  game.campaign.maxHearts = 5;
-  game.campaign.powerCap = character.basePowerCap;
-  game.campaign.cores = 0;
-  game.campaign.totalParts = 0;
-  game.campaign.totalPowerDrops = 0;
-  game.stageResults = Array.from({ length: STAGE_COUNT }, () => null);
-  game.highestUnlocked = 0;
-  loadStage(0);
-  game.screen = "playing";
-  showNotice(`${character.name} begins the 100-level campaign.`, 160);
-  updateButtons();
-  updateCampaignNote();
-}
-
-function restartStage() {
-  if (!game.campaign.lockedCharacterId) {
-    return;
+  if (game.screen !== "menu") {
+    game.screen = "playing";
   }
-  loadStage(game.stageIndex);
+  showNotice(`${game.currentLevel.name}. Collect ${game.currentLevel.requiredStorms} storm sparks to activate the gate.`, 180);
+  updateButtons();
+  updateHud();
+  renderProgressStrip();
+}
+
+function startRun(resetProgress) {
+  if (resetProgress) {
+    game.highestUnlocked = 0;
+    game.levelResults = Array.from({ length: LEVEL_NAMES.length }, () => null);
+  }
+  loadLevel(0);
+  game.screen = "playing";
+  showNotice(`${getCharacter().name} starts the run.`, 160);
+  updateButtons();
+  updateHud();
+  renderProgressStrip();
+}
+
+function restartLevel() {
+  loadLevel(game.levelIndex);
   game.screen = "playing";
   updateButtons();
 }
 
-function newCampaign() {
-  resetCampaignState();
-  game.screen = "menu";
-  game.projectiles = [];
-  game.stageIndex = 0;
-  game.currentStage = cloneStage(game.stageTemplates[0]);
-  game.player = createPlayer(getCharacter(game.selectedCharacterId), game.currentStage.spawn);
-  game.cameraX = 0;
-  showNotice("New campaign ready. Pick any Pokemon and start again.", -1);
-  updateButtons();
-  updateCampaignNote();
-  renderCharacterPicker();
-  renderProgressStrip();
-  updateHud();
-}
-
-function advanceStage() {
-  if (game.stageIndex >= STAGE_COUNT - 1) {
+function advanceLevel() {
+  if (game.levelIndex >= LEVEL_NAMES.length - 1) {
     game.screen = "gameComplete";
     updateButtons();
     return;
   }
-  loadStage(game.stageIndex + 1);
+  loadLevel(game.levelIndex + 1);
   game.screen = "playing";
   updateButtons();
 }
@@ -939,7 +589,7 @@ function pauseToggle() {
 
 function handlePrimaryAction() {
   if (game.screen === "menu") {
-    startCampaign();
+    startRun(true);
     return;
   }
   if (game.screen === "playing" || game.screen === "paused") {
@@ -947,272 +597,110 @@ function handlePrimaryAction() {
     return;
   }
   if (game.screen === "stageClear") {
-    advanceStage();
+    advanceLevel();
     return;
   }
   if (game.screen === "gameComplete") {
-    newCampaign();
+    startRun(true);
   }
 }
 
 function completeStage() {
-  game.stageResults[game.stageIndex] = {
-    completed: true,
-    parts: game.player.partsCollected,
-    powerDrops: game.player.powerDropsCollected,
-    bossStage: game.currentStage.bossStage
+  game.levelResults[game.levelIndex] = {
+    storms: game.player.stormsCollected,
+    skills: game.player.skillMotesCollected
   };
-  game.highestUnlocked = Math.max(game.highestUnlocked, game.stageIndex + 1);
-  game.campaign.totalParts += game.player.partsCollected;
-  game.campaign.totalPowerDrops += game.player.powerDropsCollected;
+  game.highestUnlocked = Math.max(game.highestUnlocked, game.levelIndex + 1);
 
-  if (game.currentStage.bossStage) {
-    game.campaign.cores += 1;
-    game.campaign.powerCap = Math.min(getCharacter().basePowerCap + 4, game.campaign.powerCap + 1);
-    if (game.campaign.cores % 2 === 0) {
-      game.campaign.maxHearts = Math.min(8, game.campaign.maxHearts + 1);
-    }
-  }
-
-  if (game.stageIndex === STAGE_COUNT - 1) {
+  if (game.levelIndex === LEVEL_NAMES.length - 1) {
     game.screen = "gameComplete";
     const totals = getRunTotals();
-    showNotice(`Mewtwo is down. Campaign complete with ${totals.parts} parts found and ${game.campaign.cores} cores recovered.`, -1);
+    showNotice(`Run complete. You caught ${totals.storms} storm sparks and ${totals.skills} skill motes.`, -1);
   } else {
     game.screen = "stageClear";
-    showNotice(`Stage clear. ${game.currentStage.bossStage ? "Core Part recovered." : "Exit reached."} Next: ${getStageName(game.stageIndex + 1)}.`, -1);
+    showNotice(`${game.currentLevel.name} clear. Next stop: ${LEVEL_NAMES[game.levelIndex + 1]}.`, -1);
   }
 
   updateButtons();
-  updateCampaignNote();
+  updateHud();
   renderProgressStrip();
 }
 
 function triggerRecovery() {
   game.screen = "recovering";
   game.recoveryTimer = 90;
-  showNotice("You were knocked out. Restarting the stage...", -1);
+  showNotice("The shadows caught you. Restarting the stage...", -1);
   updateButtons();
 }
 
-function damagePlayer(message, knockback = 5.6) {
-  if (game.screen !== "playing" || !game.player || game.player.invulnerable > 0) {
+function damagePlayer(message) {
+  if (game.screen !== "playing") {
     return;
   }
-  if (game.player.shieldTimer > 0) {
+  if (game.player.invulnerable > 0 || game.player.shieldTimer > 0) {
     return;
   }
+
   game.player.hearts -= 1;
-  game.player.invulnerable = 88;
-  game.player.vx = -game.player.facing * knockback;
+  game.player.invulnerable = 84;
+  game.player.vx = -game.player.facing * 5;
   game.player.vy = -7.5;
-  showNotice(message, 110);
+  showNotice(message, 120);
 
   if (game.player.hearts <= 0) {
     triggerRecovery();
   }
 }
 
-function damageEnemy(enemy, amount = 1) {
-  if (enemy.defeated || enemy.invulnerable > 0) {
+function tryUseSkill() {
+  if (game.screen !== "playing") {
     return;
   }
-  enemy.hp -= amount;
-  enemy.invulnerable = 12;
-  if (enemy.hp <= 0) {
-    enemy.defeated = true;
-    if (Math.random() < 0.28) {
-      game.currentStage.collectibles.push(makeCollectible("power", enemy.x + enemy.w * 0.5, enemy.y - 10));
-    }
-  }
-}
-
-function spawnBossCore() {
-  if (!game.currentStage.boss || game.currentStage.coreDropped) {
-    return;
-  }
-  game.currentStage.coreDropped = true;
-  game.currentStage.collectibles.push(
-    makeCollectible(
-      "core",
-      game.currentStage.boss.x + game.currentStage.boss.w * 0.5 - 12,
-      game.currentStage.boss.y - 20
-    )
-  );
-  showNotice(`${game.currentStage.boss.name} is beaten. Recover the Core Part.`, 160);
-}
-
-function damageBoss(amount = 1) {
-  const boss = game.currentStage.boss;
-  if (!boss || boss.defeated || boss.invulnerable > 0) {
-    return;
-  }
-  boss.hp -= amount;
-  boss.invulnerable = 16;
-  showNotice(`${boss.name} takes damage.`, 45);
-  if (boss.hp <= 0) {
-    boss.defeated = true;
-    boss.vx = 0;
-    boss.vy = 0;
-    spawnBossCore();
-  }
-}
-
-function createProjectile(options) {
-  game.projectiles.push({
-    x: options.x,
-    y: options.y,
-    w: options.w || 12,
-    h: options.h || 12,
-    vx: options.vx,
-    vy: options.vy || 0,
-    life: options.life || 90,
-    damage: options.damage || 1,
-    owner: options.owner,
-    color: options.color,
-    kind: options.kind || "orb",
-    gravity: options.gravity || 0,
-    pulse: 0
-  });
-}
-
-function usePower() {
-  if (game.screen !== "playing" || game.player.powerCooldown > 0) {
+  if (game.player.skillCharges <= 0) {
+    showNotice("No skill charges left. Catch a blue skill orb first.", 110);
     return;
   }
 
-  const player = game.player;
   const character = getCharacter();
-
-  if (player.power <= 0) {
-    showNotice(`No ${character.resourceName} left. Find more pickups.`, 110);
-    return;
-  }
-
-  const dir = player.facing || 1;
-  player.power -= 1;
-  player.powerCooldown = 26;
-
-  if (character.powerType === "dash") {
-    player.vx = dir * 11.5;
-    player.vy = Math.min(player.vy, -2);
-    player.dashTimer = 15;
-    player.invulnerable = Math.max(player.invulnerable, 12);
-    createProjectile({
-      x: player.x + player.w / 2 + dir * 18,
-      y: player.y + player.h / 2 - 6,
-      vx: dir * 9.6,
-      life: 28,
-      owner: "player",
-      color: character.powerColor,
-      damage: 2,
-      kind: "electric"
-    });
-  } else if (character.powerType === "vine") {
-    if (!player.onGround && player.vineLiftReady) {
-      player.vy = -16.5;
-      player.vineLiftReady = false;
-    } else {
-      player.vy = Math.min(player.vy, -8.5);
-    }
-    createProjectile({
-      x: player.x + player.w / 2 + dir * 16,
-      y: player.y + player.h / 2 - 4,
-      vx: dir * 7.2,
-      vy: -2.2,
-      gravity: 0.08,
-      life: 70,
-      owner: "player",
-      color: character.powerColor,
-      damage: 2,
-      kind: "seed"
-    });
-  } else if (character.powerType === "flame") {
-    player.vy = Math.min(player.vy, -7.4);
-    createProjectile({
-      x: player.x + player.w / 2 + dir * 16,
-      y: player.y + player.h / 2 - 6,
-      vx: dir * 7.8,
-      vy: -1.4,
-      gravity: 0.02,
-      life: 60,
-      owner: "player",
-      color: character.powerColor,
-      damage: 3,
-      kind: "flame"
-    });
-    createProjectile({
-      x: player.x + player.w / 2 + dir * 14,
-      y: player.y + player.h / 2,
-      vx: dir * 6.3,
-      vy: 1.1,
-      gravity: 0.03,
-      life: 46,
-      owner: "player",
-      color: "#ff784b",
-      damage: 2,
-      kind: "ember"
-    });
-  } else if (character.powerType === "shell") {
-    player.shieldTimer = 70;
-    player.vx = dir * 8.2;
-    createProjectile({
-      x: player.x + player.w / 2 + dir * 14,
-      y: player.y + player.h / 2 - 4,
-      vx: dir * 6.5,
-      vy: -0.6,
-      gravity: 0,
-      life: 74,
-      owner: "player",
-      color: character.powerColor,
-      damage: 2,
-      kind: "bubble"
-    });
-  }
-
-  showNotice(`${character.skillName} activated.`, 55);
+  game.player.skillCharges -= 1;
+  character.applySkill(game.player);
+  showNotice(`${character.skillName} activated.`, 60);
 }
 
-function getPlayerEnvironment() {
-  const player = game.player;
-  const inWater = game.currentStage.waterZones.some((zone) => rectsOverlap(player, zone));
-  const inUpdraft = game.currentStage.updrafts.find((zone) => rectsOverlap(player, zone));
-  return { inWater, updraft: inUpdraft || null };
+function getColliders(level) {
+  return [...level.ground, ...level.platforms];
 }
 
 function updatePlayer() {
-  const player = game.player;
   const character = getCharacter();
-  const world = game.currentStage.world;
-  const colliders = getSurfaceRects();
-  const environment = getPlayerEnvironment();
+  const player = game.player;
+  const colliders = getColliders(game.currentLevel);
 
   if (game.input.jumpQueued) {
-    player.jumpBuffer = 10;
+    player.jumpBuffer = 9;
     game.input.jumpQueued = false;
   } else if (player.jumpBuffer > 0) {
     player.jumpBuffer -= 1;
   }
 
-  if (game.input.powerQueued) {
-    usePower();
-    game.input.powerQueued = false;
+  if (game.input.skillQueued) {
+    tryUseSkill();
+    game.input.skillQueued = false;
   }
 
   const moveDirection = (game.input.right ? 1 : 0) - (game.input.left ? 1 : 0);
-  const targetSpeed = moveDirection * character.speed * (environment.inWater ? 0.72 : 1);
+  const targetSpeed = moveDirection * character.speed;
   const acceleration = player.onGround ? 0.32 : 0.18;
   player.vx += (targetSpeed - player.vx) * acceleration;
 
   if (moveDirection === 0) {
-    player.vx *= player.onGround ? world.grip : 0.97;
+    player.vx *= player.onGround ? 0.74 : 0.97;
   } else {
     player.facing = moveDirection;
   }
 
   if (player.onGround) {
     player.coyote = 8;
-    player.vineLiftReady = true;
   } else if (player.coyote > 0) {
     player.coyote -= 1;
   }
@@ -1224,36 +712,17 @@ function updatePlayer() {
     player.jumpBuffer = 0;
   }
 
-  if (!game.input.jumpHeld && player.vy < -4.5) {
+  if (!game.input.jumpHeld && player.vy < -4.4) {
     player.vy += 0.34;
   }
 
-  let gravity = world.gravity || BASE_GRAVITY;
-  if (environment.inWater) {
-    gravity *= character.id === "squirtle" ? 0.18 : 0.32;
-    player.vx *= 0.985;
-  }
-  if (environment.updraft) {
-    player.vy -= environment.updraft.strength;
+  if (player.glideTimer > 0 && player.vy > 3.4) {
+    player.vy = 3.4;
   }
 
-  player.vx += world.wind * (environment.inWater ? 0.4 : 1);
-  player.vy += gravity;
+  player.vy += GRAVITY;
   player.vx = clamp(player.vx, -12, 12);
-  player.vy = clamp(player.vy, -20, 16);
-
-  if (player.dashTimer > 0) {
-    player.dashTimer -= 1;
-  }
-  if (player.shieldTimer > 0) {
-    player.shieldTimer -= 1;
-  }
-  if (player.powerCooldown > 0) {
-    player.powerCooldown -= 1;
-  }
-  if (player.invulnerable > 0) {
-    player.invulnerable -= 1;
-  }
+  player.vy = clamp(player.vy, -21, 16);
 
   player.x += player.vx;
   for (const collider of colliders) {
@@ -1271,6 +740,7 @@ function updatePlayer() {
   const previousY = player.y;
   player.y += player.vy;
   player.onGround = false;
+
   for (const collider of colliders) {
     if (!rectsOverlap(player, collider)) {
       continue;
@@ -1285,305 +755,105 @@ function updatePlayer() {
     }
   }
 
-  if (player.onGround) {
-    for (const spring of game.currentStage.springs) {
-      const feet = {
-        x: player.x + 4,
-        y: player.y + player.h - 6,
-        w: player.w - 8,
-        h: 8
-      };
-      if (rectsOverlap(feet, spring)) {
-        player.vy = -spring.power;
-        player.onGround = false;
-        showNotice("Spring pad launch.", 26);
-        break;
-      }
-    }
+  if (player.invulnerable > 0) {
+    player.invulnerable -= 1;
+  }
+  if (player.dashTimer > 0) {
+    player.dashTimer -= 1;
+  }
+  if (player.shieldTimer > 0) {
+    player.shieldTimer -= 1;
+  }
+  if (player.glideTimer > 0) {
+    player.glideTimer -= 1;
   }
 
-  player.animationStep += Math.abs(player.vx) * 0.12 + 0.06;
-  player.x = clamp(player.x, 0, game.currentStage.worldWidth - player.w);
-
-  const overPit = game.currentStage.ground.every(
-    (segment) => player.x + player.w * 0.5 < segment.x || player.x + player.w * 0.5 > segment.x + segment.w
-  );
-  if (!environment.inWater && overPit && player.y > game.currentStage.baseY + 18) {
-    damagePlayer("You dropped into a ravine.");
-    if (game.screen === "playing") {
-      player.x = game.currentStage.spawn.x;
-      player.y = game.currentStage.spawn.y;
-      player.vx = 0;
-      player.vy = 0;
-    }
-  }
+  player.animationStep += Math.abs(player.vx) * 0.12 + 0.05;
+  player.x = clamp(player.x, 0, game.currentLevel.worldWidth - player.w);
 
   if (player.y > VIEW_HEIGHT + 180) {
-    damagePlayer("You fell out of the stage.");
+    damagePlayer("You slipped into the storm below.");
     if (game.screen === "playing") {
-      player.x = game.currentStage.spawn.x;
-      player.y = game.currentStage.spawn.y;
+      player.x = game.currentLevel.spawn.x;
+      player.y = game.currentLevel.spawn.y;
       player.vx = 0;
       player.vy = 0;
     }
   }
 }
 
-function updateEnemies() {
-  const player = game.player;
+function defeatEnemy(enemy) {
+  enemy.defeated = true;
+  game.player.vy = -8.2;
+}
 
-  for (const enemy of game.currentStage.enemies) {
+function updateEnemies() {
+  for (const enemy of game.currentLevel.enemies) {
     if (enemy.defeated) {
       continue;
     }
 
-    if (enemy.invulnerable > 0) {
-      enemy.invulnerable -= 1;
-    }
-
-    enemy.phase += 0.06;
-
-    if (enemy.type === "runner" || enemy.type === "tank") {
-      const chaseBoost = enemy.type === "tank" ? 0.2 : 0.3;
-      const desiredDir = Math.abs(player.x - enemy.x) < 200 ? Math.sign(player.x - enemy.x) || enemy.dir : enemy.dir;
-      enemy.dir = desiredDir;
-      enemy.x += enemy.speed * chaseBoost * enemy.dir;
-      if (enemy.x < enemy.minX) {
-        enemy.x = enemy.minX;
-        enemy.dir = 1;
-      }
-      if (enemy.x > enemy.maxX) {
-        enemy.x = enemy.maxX;
-        enemy.dir = -1;
-      }
-    } else if (enemy.type === "hopper") {
-      enemy.cooldown -= 1;
-      if (enemy.cooldown <= 0) {
-        enemy.cooldown = 55;
-        enemy.vy = -8.2;
-      }
-      enemy.vy = (enemy.vy || 0) + 0.42;
-      enemy.y += enemy.vy;
-      if (enemy.y > enemy.surfaceY) {
-        enemy.y = enemy.surfaceY;
-        enemy.vy = 0;
-      }
-      enemy.x += enemy.speed * 0.6 * enemy.dir;
-      if (enemy.x < enemy.minX || enemy.x > enemy.maxX) {
-        enemy.dir *= -1;
-      }
-    } else if (enemy.type === "flyer") {
-      enemy.x += enemy.speed * 0.75 * enemy.dir;
-      enemy.y = enemy.homeY + Math.sin(enemy.phase) * 22;
-      if (enemy.x < enemy.minX || enemy.x > enemy.maxX) {
-        enemy.dir *= -1;
-      }
-    }
-
-    if (!rectsOverlap(player, enemy) || game.screen !== "playing") {
-      continue;
-    }
-
-    const stomping = player.vy > 2 && player.y + player.h - enemy.y < 16;
-    if (stomping || player.dashTimer > 0 || player.shieldTimer > 0) {
-      damageEnemy(enemy, enemy.type === "tank" ? 2 : enemy.hp);
-      player.vy = -8;
-    } else {
-      damagePlayer("A rogue Pokemon clipped you.");
-    }
-  }
-}
-
-function spawnEnemyProjectile(x, y, vx, vy, color, damage = 1) {
-  createProjectile({
-    x,
-    y,
-    vx,
-    vy,
-    w: 14,
-    h: 14,
-    life: 95,
-    owner: "enemy",
-    color,
-    damage,
-    kind: "enemy",
-    gravity: 0
-  });
-}
-
-function updateBoss() {
-  const boss = game.currentStage.boss;
-  if (!boss || boss.defeated) {
-    return;
-  }
-
-  const player = game.player;
-  boss.phase += 0.05;
-  boss.cooldown -= 1;
-  if (boss.invulnerable > 0) {
-    boss.invulnerable -= 1;
-  }
-
-  if (boss.pattern === "pouncer") {
-    boss.dir = Math.sign(player.x - boss.x) || boss.dir;
-    boss.vx += (boss.dir * 2.1 - boss.vx) * 0.06;
-    if (boss.cooldown <= 0 && boss.y >= boss.groundY - 1) {
-      boss.vy = -13.5;
-      boss.vx = boss.dir * 4.6;
-      boss.cooldown = 96;
-    }
-    boss.vy += 0.55;
-    boss.x += boss.vx;
-    boss.y += boss.vy;
-    if (boss.y > boss.groundY) {
-      boss.y = boss.groundY;
-      boss.vy = 0;
-    }
-  } else if (boss.pattern === "wave") {
-    boss.dir = Math.sign(player.x - boss.x) || boss.dir;
-    boss.x += boss.dir * 1.8;
-    boss.y = boss.baseY + Math.sin(boss.phase) * 24;
-    if (boss.cooldown <= 0) {
-      boss.cooldown = 88;
-      spawnEnemyProjectile(boss.x, boss.y + 24, -4.2, 0.4, boss.accent, 1);
-      spawnEnemyProjectile(boss.x, boss.y + 34, -3.6, -1.2, boss.accent, 1);
-      spawnEnemyProjectile(boss.x, boss.y + 14, -3.6, 1.2, boss.accent, 1);
-    }
-  } else if (boss.pattern === "shooter") {
-    boss.dir = Math.sign(player.x - boss.x) || boss.dir;
-    boss.vx += (boss.dir * 1.8 - boss.vx) * 0.05;
-    boss.x += boss.vx;
-    boss.y = boss.groundY;
-    if (boss.cooldown <= 0) {
-      boss.cooldown = 76;
-      spawnEnemyProjectile(boss.x + boss.w * 0.2, boss.y + boss.h * 0.35, boss.dir * 5.2, -0.2, boss.accent, 1);
-    }
-  } else if (boss.pattern === "tank") {
-    boss.dir = Math.sign(player.x - boss.x) || boss.dir;
-    if (boss.chargeTimer > 0) {
-      boss.chargeTimer -= 1;
-      boss.x += boss.dir * 6.4;
-      if (boss.chargeTimer % 12 === 0) {
-        spawnEnemyProjectile(boss.x + boss.w / 2, boss.y + boss.h - 8, boss.dir * 4.8, -0.4, boss.accent, 1);
-      }
-    } else {
-      boss.vx += (boss.dir * 1.2 - boss.vx) * 0.05;
-      boss.x += boss.vx;
-      if (boss.cooldown <= 0) {
-        boss.cooldown = 118;
-        boss.chargeTimer = 28;
-      }
-    }
-    boss.y = boss.groundY;
-  } else if (boss.pattern === "teleport") {
-    boss.y = boss.baseY + Math.sin(boss.phase) * 18;
-    if (boss.cooldown <= 0) {
-      boss.cooldown = boss.name === "Mewtwo" ? 64 : 90;
-      const phaseShift = Math.sin(game.tick * 0.07) * 140;
-      boss.x = clamp(player.x + phaseShift, 320, game.currentStage.worldWidth - 260);
-      const burst = boss.name === "Mewtwo" ? 5 : 3;
-      for (let shot = 0; shot < burst; shot += 1) {
-        const angle = -0.8 + shot * (1.6 / Math.max(1, burst - 1));
-        spawnEnemyProjectile(
-          boss.x + boss.w / 2,
-          boss.y + boss.h / 2,
-          Math.cos(angle) * 4.8,
-          Math.sin(angle) * 3.4,
-          boss.accent,
-          1
-        );
-      }
-    }
-  }
-
-  boss.x = clamp(boss.x, 240, game.currentStage.worldWidth - boss.w - 110);
-
-  if (rectsOverlap(player, boss) && game.screen === "playing") {
-    const stomping = player.vy > 2 && player.y + player.h - boss.y < 18;
-    if (stomping || player.dashTimer > 0 || player.shieldTimer > 0) {
-      damageBoss(player.dashTimer > 0 ? 2 : 1);
-      player.vy = -8.4;
-    } else {
-      damagePlayer(`${boss.name} struck back.`, 7.2);
-    }
-  }
-}
-
-function updateProjectiles() {
-  const player = game.player;
-  const boss = game.currentStage.boss;
-
-  game.projectiles = game.projectiles.filter((projectile) => {
-    projectile.life -= 1;
-    projectile.pulse += 0.16;
-    projectile.vy += projectile.gravity;
-    projectile.x += projectile.vx;
-    projectile.y += projectile.vy;
+    enemy.phase += 0.07;
+    let activeSpeed = enemy.speed;
 
     if (
-      projectile.x < -60 ||
-      projectile.x > game.currentStage.worldWidth + 60 ||
-      projectile.y < -60 ||
-      projectile.y > VIEW_HEIGHT + 120 ||
-      projectile.life <= 0
+      enemy.type === "stalker" &&
+      Math.abs(game.player.x - enemy.x) < 220 &&
+      Math.abs(game.player.y - enemy.y) < 150
     ) {
-      return false;
+      enemy.dir = Math.sign(game.player.x - enemy.x) || enemy.dir;
+      activeSpeed *= 1.25;
     }
 
-    if (projectile.owner === "player") {
-      for (const enemy of game.currentStage.enemies) {
-        if (!enemy.defeated && rectsOverlap(projectile, enemy)) {
-          damageEnemy(enemy, projectile.damage);
-          return false;
-        }
-      }
-      if (boss && !boss.defeated && rectsOverlap(projectile, boss)) {
-        damageBoss(projectile.damage);
-        return false;
-      }
-    } else if (rectsOverlap(projectile, player)) {
-      damagePlayer("A boss attack hit you.");
-      return false;
+    enemy.x += activeSpeed * enemy.dir;
+    if (enemy.x < enemy.minX) {
+      enemy.x = enemy.minX;
+      enemy.dir = 1;
+    } else if (enemy.x > enemy.maxX) {
+      enemy.x = enemy.maxX;
+      enemy.dir = -1;
     }
 
-    return true;
-  });
+    const player = game.player;
+    if (rectsOverlap(player, enemy) && game.screen === "playing") {
+      const stomping = player.vy > 1.8 && player.y + player.h - enemy.y < 18;
+      if (stomping || player.dashTimer > 0 || player.shieldTimer > 0) {
+        defeatEnemy(enemy);
+      } else if (player.invulnerable === 0) {
+        damagePlayer("A shadow Pokemon clipped you.");
+      }
+    }
+  }
 }
 
 function updateCollectibles() {
-  for (const item of game.currentStage.collectibles) {
+  for (const item of game.currentLevel.collectibles) {
     if (item.collected || !rectsOverlap(game.player, item)) {
       continue;
     }
     item.collected = true;
-
-    if (item.kind === "part") {
-      game.player.partsCollected += 1;
-      showNotice("Comet Part recovered.", 46);
-    } else if (item.kind === "power") {
-      game.player.power = Math.min(game.player.powerMax, game.player.power + 1);
-      game.player.powerDropsCollected += 1;
-      showNotice(`${getPowerItemName()} collected.`, 52);
-    } else if (item.kind === "heart") {
-      game.player.hearts = Math.min(game.player.maxHearts, game.player.hearts + 1);
-      showNotice("Heart berry collected.", 52);
-    } else if (item.kind === "core") {
-      game.player.partsCollected = game.currentStage.partsRequired;
-      showNotice("Core Part secured. The exit gate is live.", 120);
+    if (item.kind === "storm") {
+      game.player.stormsCollected += 1;
+      showNotice("Storm spark caught.", 36);
+    } else {
+      game.player.skillCharges = Math.min(MAX_SKILL_CHARGES, game.player.skillCharges + 1);
+      game.player.skillMotesCollected += 1;
+      showNotice("Skill mote collected.", 64);
     }
   }
 }
 
 function updateGoal() {
   const player = game.player;
-  const goal = game.currentStage.goal;
+  const goal = game.currentLevel.goal;
+
   if (!rectsOverlap(player, goal)) {
     return;
   }
-  if (player.partsCollected >= game.currentStage.partsRequired) {
+  if (player.stormsCollected >= game.currentLevel.requiredStorms) {
     completeStage();
   } else {
-    showNotice("The gate is still locked. Find the missing parts first.", 88);
+    showNotice("The gate needs more storm sparks before it will open.", 80);
   }
 }
 
@@ -1591,7 +861,7 @@ function updateGame() {
   if (game.screen === "recovering") {
     game.recoveryTimer -= 1;
     if (game.recoveryTimer <= 0) {
-      restartStage();
+      restartLevel();
     }
     return;
   }
@@ -1602,12 +872,10 @@ function updateGame() {
 
   updatePlayer();
   updateEnemies();
-  updateBoss();
-  updateProjectiles();
   updateCollectibles();
   updateGoal();
 
-  game.cameraX = clamp(game.player.x - VIEW_WIDTH * 0.34, 0, game.currentStage.worldWidth - VIEW_WIDTH);
+  game.cameraX = clamp(game.player.x - VIEW_WIDTH * 0.34, 0, game.currentLevel.worldWidth - VIEW_WIDTH);
 }
 
 function drawRoundedRect(x, y, w, h, r) {
@@ -1624,326 +892,178 @@ function drawRoundedRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawBackground() {
-  const world = game.currentStage.world;
+function drawBackground(level) {
   const gradient = ctx.createLinearGradient(0, 0, 0, VIEW_HEIGHT);
-  gradient.addColorStop(0, world.skyTop);
-  gradient.addColorStop(1, world.skyBottom);
+  gradient.addColorStop(0, level.theme.skyTop);
+  gradient.addColorStop(1, level.theme.skyBottom);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
 
-  ctx.fillStyle = world.cloud;
-  for (let index = 0; index < 5; index += 1) {
-    const x = ((index * 220 - game.cameraX * (0.12 + index * 0.02)) % (VIEW_WIDTH + 280)) - 120;
-    const y = 58 + (index % 3) * 52;
+  ctx.fillStyle = level.theme.cloud;
+  range(5, (index) => {
+    const x = ((index * 220 - game.cameraX * (0.12 + index * 0.02)) % (VIEW_WIDTH + 260)) - 120;
+    const y = 56 + (index % 3) * 48;
     ctx.beginPath();
     ctx.ellipse(x, y, 52, 20, 0, 0, Math.PI * 2);
-    ctx.ellipse(x + 40, y + 6, 44, 18, 0, 0, Math.PI * 2);
-    ctx.ellipse(x - 36, y + 8, 38, 16, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 42, y + 6, 44, 18, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - 38, y + 8, 38, 16, 0, 0, Math.PI * 2);
     ctx.fill();
-  }
+  });
 
-  ctx.fillStyle = world.hillB;
+  ctx.fillStyle = level.theme.hillB;
   ctx.beginPath();
   ctx.moveTo(0, VIEW_HEIGHT);
-  for (let index = 0; index < 8; index += 1) {
+  range(8, (index) => {
     const x = index * 160 - (game.cameraX * 0.2) % 160;
-    ctx.lineTo(x, 360 - 80 - (index % 3) * 18);
-    ctx.lineTo(x + 90, 404);
-  }
+    const peakHeight = 84 + (index % 3) * 20;
+    ctx.lineTo(x, 360 - peakHeight);
+    ctx.lineTo(x + 80, 392);
+  });
   ctx.lineTo(VIEW_WIDTH, VIEW_HEIGHT);
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = world.hillA;
+  ctx.fillStyle = level.theme.hillA;
   ctx.beginPath();
   ctx.moveTo(0, VIEW_HEIGHT);
-  for (let index = 0; index < 7; index += 1) {
+  range(7, (index) => {
     const x = index * 190 - (game.cameraX * 0.32) % 190;
-    ctx.lineTo(x, 332 - 100 - (index % 4) * 14);
-    ctx.lineTo(x + 100, 398);
-  }
+    const peakHeight = 120 + (index % 4) * 18;
+    ctx.lineTo(x, 338 - peakHeight);
+    ctx.lineTo(x + 95, 398);
+  });
   ctx.lineTo(VIEW_WIDTH, VIEW_HEIGHT);
   ctx.closePath();
   ctx.fill();
 }
 
-function drawGroundBlock(rect) {
-  const world = game.currentStage.world;
+function drawGroundBlock(rect, theme) {
   const screenX = rect.x - game.cameraX;
-  ctx.fillStyle = world.groundFace;
+  ctx.fillStyle = theme.groundFace;
   ctx.fillRect(screenX, rect.y, rect.w, rect.h);
-  ctx.fillStyle = world.groundTop;
+  ctx.fillStyle = theme.groundTop;
   ctx.fillRect(screenX, rect.y, rect.w, 18);
+
   ctx.fillStyle = "rgba(255,255,255,0.12)";
-  for (let offset = 14; offset < rect.w; offset += 32) {
-    ctx.fillRect(screenX + offset, rect.y + 25 + ((offset / 32) % 2) * 10, 8, 8);
+  for (let offset = 12; offset < rect.w; offset += 30) {
+    ctx.fillRect(screenX + offset, rect.y + 24 + ((offset / 30) % 2) * 10, 8, 8);
   }
 }
 
-function drawPlatform(platform) {
-  const world = game.currentStage.world;
+function drawPlatform(platform, theme) {
   const screenX = platform.x - game.cameraX;
-  ctx.fillStyle = world.platformFace;
+  ctx.fillStyle = theme.platformFace;
   drawRoundedRect(screenX, platform.y, platform.w, platform.h, 8);
   ctx.fill();
-  ctx.fillStyle = world.platformTop;
+  ctx.fillStyle = theme.platformTop;
   ctx.fillRect(screenX + 4, platform.y + 3, platform.w - 8, 7);
-}
-
-function drawSprings() {
-  game.currentStage.springs.forEach((spring) => {
-    const screenX = spring.x - game.cameraX;
-    ctx.fillStyle = "#ff7c50";
-    ctx.fillRect(screenX, spring.y, spring.w, spring.h);
-    ctx.strokeStyle = "#ffe28d";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(screenX + 6, spring.y + spring.h);
-    ctx.lineTo(screenX + 14, spring.y + 2);
-    ctx.lineTo(screenX + 22, spring.y + spring.h);
-    ctx.lineTo(screenX + 30, spring.y + 2);
-    ctx.stroke();
-  });
-}
-
-function drawUpdrafts() {
-  game.currentStage.updrafts.forEach((zone, index) => {
-    const screenX = zone.x - game.cameraX;
-    ctx.fillStyle = "rgba(170, 242, 255, 0.12)";
-    ctx.fillRect(screenX, zone.y, zone.w, zone.h);
-    ctx.strokeStyle = "rgba(255,255,255,0.22)";
-    ctx.lineWidth = 2;
-    for (let arrow = 0; arrow < 3; arrow += 1) {
-      const x = screenX + 18 + arrow * (zone.w / 3);
-      const top = zone.y + 18 + (index % 2) * 8;
-      ctx.beginPath();
-      ctx.moveTo(x, top + 34);
-      ctx.lineTo(x, top);
-      ctx.lineTo(x - 8, top + 12);
-      ctx.moveTo(x, top);
-      ctx.lineTo(x + 8, top + 12);
-      ctx.stroke();
-    }
-  });
-}
-
-function drawWaterZones() {
-  game.currentStage.waterZones.forEach((zone) => {
-    const screenX = zone.x - game.cameraX;
-    ctx.fillStyle = "rgba(94, 202, 255, 0.24)";
-    ctx.fillRect(screenX, zone.y, zone.w, zone.h);
-    ctx.fillStyle = "rgba(218, 248, 255, 0.28)";
-    ctx.fillRect(screenX, zone.y, zone.w, 8);
-  });
 }
 
 function drawCollectible(item) {
   const screenX = item.x - game.cameraX;
-  const pulse = 0.84 + Math.sin(game.tick * 0.08 + item.x * 0.03) * 0.12;
+  const pulse = 0.85 + Math.sin(game.tick * 0.08 + item.x * 0.03) * 0.12;
+
+  if (item.kind === "storm") {
+    ctx.save();
+    ctx.translate(screenX + item.w / 2, item.y + item.h / 2);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = "rgba(255, 241, 161, 0.35)";
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffe173";
+    ctx.beginPath();
+    ctx.moveTo(-2, -10);
+    ctx.lineTo(8, -2);
+    ctx.lineTo(3, -2);
+    ctx.lineTo(7, 10);
+    ctx.lineTo(-7, 1);
+    ctx.lineTo(-1, 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
 
   ctx.save();
   ctx.translate(screenX + item.w / 2, item.y + item.h / 2);
   ctx.scale(pulse, pulse);
-
-  if (item.kind === "part") {
-    ctx.fillStyle = "rgba(255, 223, 120, 0.22)";
-    ctx.beginPath();
-    ctx.arc(0, 0, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffd974";
-    ctx.beginPath();
-    ctx.arc(0, 0, 8, 0, Math.PI * 2);
-    ctx.fill();
-    for (let tooth = 0; tooth < 8; tooth += 1) {
-      const angle = tooth * (Math.PI / 4);
-      const x = Math.cos(angle) * 12;
-      const y = Math.sin(angle) * 12;
-      ctx.fillRect(x - 2, y - 2, 4, 4);
-    }
-  } else if (item.kind === "power") {
-    ctx.fillStyle = "rgba(255,255,255,0.12)";
-    ctx.beginPath();
-    ctx.arc(0, 0, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = getCharacter().powerColor;
-    if (getCharacter().id === "pikachu") {
-      ctx.beginPath();
-      ctx.moveTo(-2, -10);
-      ctx.lineTo(8, -2);
-      ctx.lineTo(2, -2);
-      ctx.lineTo(8, 10);
-      ctx.lineTo(-8, 0);
-      ctx.lineTo(-2, 0);
-      ctx.closePath();
-      ctx.fill();
-    } else if (getCharacter().id === "bulbasaur") {
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 7, 11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#6fd767";
-      ctx.beginPath();
-      ctx.ellipse(-3, -6, 5, 3, -0.5, 0, Math.PI * 2);
-      ctx.ellipse(3, -6, 5, 3, 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (getCharacter().id === "charmander") {
-      ctx.fillStyle = "#ff9f58";
-      ctx.beginPath();
-      ctx.moveTo(0, -12);
-      ctx.quadraticCurveTo(10, -4, 4, 10);
-      ctx.quadraticCurveTo(0, 14, -4, 10);
-      ctx.quadraticCurveTo(-10, -2, 0, -12);
-      ctx.fill();
+  ctx.fillStyle = "rgba(65, 215, 208, 0.26)";
+  ctx.beginPath();
+  ctx.arc(0, 0, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#7ceef0";
+  ctx.beginPath();
+  for (let point = 0; point < 8; point += 1) {
+    const radius = point % 2 === 0 ? 11 : 5;
+    const angle = (-Math.PI / 2) + point * (Math.PI / 4);
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (point === 0) {
+      ctx.moveTo(x, y);
     } else {
-      ctx.fillStyle = "#98f5ff";
-      ctx.beginPath();
-      ctx.arc(0, 0, 9, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#e8ffff";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, 5, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.lineTo(x, y);
     }
-  } else if (item.kind === "heart") {
-    ctx.fillStyle = "#ff7e76";
-    ctx.beginPath();
-    ctx.moveTo(0, 10);
-    ctx.bezierCurveTo(-15, -2, -10, -14, 0, -6);
-    ctx.bezierCurveTo(10, -14, 15, -2, 0, 10);
-    ctx.fill();
-  } else if (item.kind === "core") {
-    ctx.fillStyle = "rgba(255, 236, 140, 0.24)";
-    ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffe27b";
-    ctx.fillRect(-10, -10, 20, 20);
-    ctx.fillStyle = "#ff8b4c";
-    ctx.fillRect(-4, -4, 8, 8);
   }
-
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
 function drawEnemy(enemy) {
   const screenX = enemy.x - game.cameraX;
-  const bob = enemy.type === "flyer" ? Math.sin(enemy.phase) * 2 : 0;
-  const colorMap = {
-    runner: "#5b2c42",
-    hopper: "#7f3d5d",
-    flyer: "#2f4564",
-    tank: "#4c3647"
-  };
+  const bob = Math.sin(enemy.phase) * 2.2;
+  const color = enemy.type === "stalker" ? "#3c3554" : "#6d2437";
+
   ctx.save();
   ctx.translate(screenX + enemy.w / 2, enemy.y + enemy.h / 2 + bob);
-  ctx.fillStyle = colorMap[enemy.type];
+
+  ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.ellipse(0, 2, enemy.w * 0.42, enemy.h * 0.42, 0, 0, Math.PI * 2);
+  ctx.moveTo(-14, 10);
+  ctx.quadraticCurveTo(-20, -8, -8, -14);
+  ctx.lineTo(-2, -18);
+  ctx.lineTo(3, -14);
+  ctx.lineTo(8, -18);
+  ctx.lineTo(14, -12);
+  ctx.quadraticCurveTo(20, -4, 14, 12);
+  ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = "#fff7f0";
-  ctx.fillRect(-7, -4, 5, 7);
-  ctx.fillRect(2, -4, 5, 7);
-  ctx.fillStyle = "#1a1018";
-  ctx.fillRect(-5, -2, 2, 3);
-  ctx.fillRect(4, -2, 2, 3);
+
+  ctx.fillStyle = "#fff9f0";
+  ctx.fillRect(-8, -2, 5, 7);
+  ctx.fillRect(3, -2, 5, 7);
+  ctx.fillStyle = "#1d1022";
+  ctx.fillRect(-6, 0, 2, 4);
+  ctx.fillRect(5, 0, 2, 4);
   ctx.restore();
 }
 
-function drawBoss() {
-  const boss = game.currentStage.boss;
-  if (!boss || boss.defeated) {
-    return;
-  }
-  if (boss.invulnerable > 0 && boss.invulnerable % 6 < 3) {
-    return;
-  }
-
-  const screenX = boss.x - game.cameraX;
-  ctx.save();
-  ctx.translate(screenX + boss.w / 2, boss.y + boss.h / 2);
-  ctx.fillStyle = boss.color;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, boss.w * 0.46, boss.h * 0.44, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = boss.accent;
-  if (boss.name === "Lapras" || boss.name === "Gyarados") {
-    ctx.beginPath();
-    ctx.moveTo(-18, -10);
-    ctx.lineTo(-4, -34);
-    ctx.lineTo(8, -8);
-    ctx.closePath();
-    ctx.fill();
-  } else if (boss.name === "Charizard" || boss.name === "Dragonite") {
-    ctx.beginPath();
-    ctx.moveTo(-26, -4);
-    ctx.lineTo(-48, -26);
-    ctx.lineTo(-18, -18);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(26, -4);
-    ctx.lineTo(48, -26);
-    ctx.lineTo(18, -18);
-    ctx.closePath();
-    ctx.fill();
-  } else {
-    ctx.beginPath();
-    ctx.arc(-18, -12, 8, 0, Math.PI * 2);
-    ctx.arc(18, -12, 8, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.fillStyle = "#fff6eb";
-  ctx.fillRect(-14, -6, 9, 11);
-  ctx.fillRect(5, -6, 9, 11);
-  ctx.fillStyle = "#120d14";
-  ctx.fillRect(-11, -3, 4, 5);
-  ctx.fillRect(8, -3, 4, 5);
-  ctx.restore();
-}
-
-function drawProjectiles() {
-  game.projectiles.forEach((projectile) => {
-    const screenX = projectile.x - game.cameraX;
-    const pulse = 0.88 + Math.sin(projectile.pulse) * 0.16;
-    ctx.save();
-    ctx.translate(screenX + projectile.w / 2, projectile.y + projectile.h / 2);
-    ctx.scale(pulse, pulse);
-    ctx.fillStyle = projectile.color;
-    ctx.beginPath();
-    ctx.arc(0, 0, projectile.w * 0.55, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  });
-}
-
-function drawGoal() {
-  const goal = game.currentStage.goal;
-  const active = game.player.partsCollected >= game.currentStage.partsRequired;
+function drawGoal(goal, activated) {
   const screenX = goal.x - game.cameraX;
+  ctx.save();
+  ctx.fillStyle = activated ? "rgba(255, 214, 88, 0.2)" : "rgba(255,255,255,0.1)";
+  ctx.fillRect(screenX - 16, goal.y - 12, goal.w + 32, goal.h + 18);
 
-  ctx.fillStyle = active ? "rgba(255, 215, 122, 0.18)" : "rgba(255,255,255,0.1)";
-  ctx.fillRect(screenX - 16, goal.y - 12, goal.w + 32, goal.h + 16);
-  ctx.fillStyle = active ? "#ffe17a" : "#d7dce2";
+  ctx.fillStyle = activated ? "#ffe07a" : "#d6d9dd";
   ctx.fillRect(screenX, goal.y, 10, goal.h);
   ctx.fillRect(screenX + goal.w - 10, goal.y, 10, goal.h);
   ctx.fillRect(screenX, goal.y, goal.w, 10);
-  ctx.strokeStyle = active ? "#ff8b42" : "#93abc1";
+
+  ctx.strokeStyle = activated ? "#ff8f3b" : "#95b0c4";
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(screenX + goal.w / 2 - 9, goal.y + 22);
-  ctx.lineTo(screenX + goal.w / 2 + 6, goal.y + 50);
-  ctx.lineTo(screenX + goal.w / 2 - 3, goal.y + 50);
-  ctx.lineTo(screenX + goal.w / 2 + 11, goal.y + 82);
+  ctx.moveTo(screenX + goal.w / 2 - 10, goal.y + 24);
+  ctx.lineTo(screenX + goal.w / 2 + 5, goal.y + 50);
+  ctx.lineTo(screenX + goal.w / 2 - 4, goal.y + 50);
+  ctx.lineTo(screenX + goal.w / 2 + 10, goal.y + 82);
   ctx.stroke();
+  ctx.restore();
 }
 
-function drawPlayer() {
-  const player = game.player;
-  const character = getCharacter();
-  if (player.invulnerable > 0 && player.invulnerable % 8 < 4) {
+function drawPlayer(player, character) {
+  const flash = player.invulnerable > 0 && player.invulnerable % 8 < 4;
+  if (flash) {
     return;
   }
 
@@ -1957,11 +1077,13 @@ function drawPlayer() {
   ctx.translate(centerX, centerY + bounce);
   ctx.scale(facing, 1);
 
-  if (character.id === "pikachu") {
+  if (character.id === "spark") {
     ctx.fillStyle = character.body;
     ctx.beginPath();
     ctx.ellipse(0, 4, 15, 14, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.fillStyle = character.body;
     ctx.beginPath();
     ctx.moveTo(-10, -6);
     ctx.lineTo(-16, -22);
@@ -1974,6 +1096,7 @@ function drawPlayer() {
     ctx.lineTo(11, -8);
     ctx.closePath();
     ctx.fill();
+
     ctx.strokeStyle = character.outline;
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -1982,26 +1105,13 @@ function drawPlayer() {
     ctx.lineTo(18, -6);
     ctx.lineTo(31, -12);
     ctx.stroke();
+
     ctx.fillStyle = "#ff6b57";
     ctx.beginPath();
     ctx.arc(-5, 7, 4, 0, Math.PI * 2);
     ctx.arc(8, 7, 4, 0, Math.PI * 2);
     ctx.fill();
-  } else if (character.id === "bulbasaur") {
-    ctx.fillStyle = character.body;
-    ctx.beginPath();
-    ctx.ellipse(0, 4, 17, 13, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#4aa76a";
-    ctx.beginPath();
-    ctx.ellipse(0, -5, 11, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = character.accent;
-    ctx.beginPath();
-    ctx.arc(-5, 3, 4, 0, Math.PI * 2);
-    ctx.arc(6, 3, 4, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (character.id === "charmander") {
+  } else if (character.id === "blaze") {
     ctx.fillStyle = character.body;
     ctx.beginPath();
     ctx.ellipse(0, 4, 15, 13, 0, 0, Math.PI * 2);
@@ -2024,7 +1134,7 @@ function drawPlayer() {
     ctx.closePath();
     ctx.fill();
   } else {
-    ctx.fillStyle = player.shieldTimer > 0 ? "#c9fff8" : character.body;
+    ctx.fillStyle = player.shieldTimer > 0 ? "#c7fff7" : character.body;
     ctx.beginPath();
     ctx.ellipse(0, 4, 18, 14, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -2038,65 +1148,49 @@ function drawPlayer() {
     ctx.fill();
   }
 
-  ctx.fillStyle = "#171011";
+  ctx.fillStyle = "#1c1110";
   ctx.fillRect(4, -8, 3, 3);
   ctx.fillRect(-3, -8, 3, 3);
   ctx.restore();
 
   if (player.dashTimer > 0) {
-    ctx.strokeStyle = "rgba(255, 224, 122, 0.72)";
+    ctx.strokeStyle = "rgba(255, 224, 122, 0.7)";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(centerX - facing * 22, centerY + 4);
-    ctx.lineTo(centerX - facing * 42, centerY + 8);
+    ctx.moveTo(centerX - facing * 24, centerY + 5);
+    ctx.lineTo(centerX - facing * 40, centerY + 8);
     ctx.stroke();
   }
 }
 
-function drawBossBar() {
-  const boss = game.currentStage.boss;
-  if (!boss || boss.defeated) {
-    return;
-  }
-  const width = 280;
-  const height = 14;
-  const x = VIEW_WIDTH - width - 28;
-  const y = 22;
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  drawRoundedRect(x, y, width, height, 8);
-  ctx.fill();
-  ctx.fillStyle = boss.color;
-  drawRoundedRect(x, y, width * (boss.hp / boss.maxHp), height, 8);
-  ctx.fill();
-  ctx.fillStyle = "#fff4e0";
-  ctx.font = '700 16px "Avenir Next", "Trebuchet MS", sans-serif';
-  ctx.textAlign = "right";
-  ctx.fillText(`${boss.name} ${boss.hp}/${boss.maxHp}`, x + width, y - 6);
-}
-
 function drawWorld() {
-  drawBackground();
-  game.currentStage.ground.forEach(drawGroundBlock);
-  drawWaterZones();
-  game.currentStage.platforms.forEach(drawPlatform);
-  drawSprings();
-  drawUpdrafts();
+  drawBackground(game.currentLevel);
+  game.currentLevel.ground.forEach((segment) => drawGroundBlock(segment, game.currentLevel.theme));
+  game.currentLevel.platforms.forEach((platform) => drawPlatform(platform, game.currentLevel.theme));
 
-  game.currentStage.collectibles.forEach((item) => {
+  for (const item of game.currentLevel.collectibles) {
     if (!item.collected) {
       drawCollectible(item);
     }
-  });
-  game.currentStage.enemies.forEach((enemy) => {
+  }
+
+  for (const enemy of game.currentLevel.enemies) {
     if (!enemy.defeated) {
       drawEnemy(enemy);
     }
-  });
-  drawBoss();
-  drawProjectiles();
-  drawGoal();
-  drawPlayer();
-  drawBossBar();
+  }
+
+  drawGoal(
+    game.currentLevel.goal,
+    game.player.stormsCollected >= game.currentLevel.requiredStorms
+  );
+  drawPlayer(game.player, getCharacter());
+
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  for (const pit of game.currentLevel.pits) {
+    const x = pit.start - game.cameraX;
+    ctx.fillRect(x, game.currentLevel.baseY + 14, pit.end - pit.start, 8);
+  }
 }
 
 function drawOverlay() {
@@ -2107,113 +1201,93 @@ function drawOverlay() {
   ctx.fillStyle = "rgba(7, 12, 20, 0.42)";
   ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
 
-  let title = "Pokemon Comet Quest";
-  let subtitle = "Choose a Pokemon and start the 100-level campaign.";
+  let title = "Pika Storm Run";
+  let subtitle = "Press Enter or click Start.";
 
   if (game.screen === "paused") {
     title = "Paused";
-    subtitle = "Press Enter or click Resume.";
+    subtitle = "Press Enter or click Resume to continue.";
   } else if (game.screen === "stageClear") {
     title = "Stage Clear";
-    subtitle = "Press Enter or click Next Stage.";
+    subtitle = "Press Enter or click Next Level.";
   } else if (game.screen === "recovering") {
     title = "Try Again";
     subtitle = "Restarting the current stage.";
   } else if (game.screen === "gameComplete") {
     const totals = getRunTotals();
-    title = "Campaign Complete";
-    subtitle = `${getCharacter().name} cleared all 100 stages. Parts: ${totals.parts}. Bosses: ${totals.bosses}.`;
+    title = "Run Complete";
+    subtitle = `25 stages cleared. Storm sparks: ${totals.storms}. Skill motes: ${totals.skills}.`;
+  } else if (game.screen === "menu") {
+    title = "Pika Storm Run";
+    subtitle = "Choose a Pokemon and start the run.";
   }
 
   ctx.fillStyle = "#f8eed7";
-  ctx.font = '700 42px "Avenir Next Condensed", "Trebuchet MS", sans-serif';
+  ctx.font = '700 44px "Avenir Next Condensed", "Trebuchet MS", sans-serif';
   ctx.textAlign = "center";
   ctx.fillText(title, VIEW_WIDTH / 2, VIEW_HEIGHT / 2 - 16);
+
   ctx.fillStyle = "#d7e7ef";
-  ctx.font = '500 21px "Avenir Next", "Trebuchet MS", sans-serif';
-  ctx.fillText(subtitle, VIEW_WIDTH / 2, VIEW_HEIGHT / 2 + 28);
+  ctx.font = '500 22px "Avenir Next", "Trebuchet MS", sans-serif';
+  ctx.fillText(subtitle, VIEW_WIDTH / 2, VIEW_HEIGHT / 2 + 26);
 }
 
 function render() {
-  if (!game.currentStage || !game.player) {
+  if (!game.currentLevel || !game.player) {
     return;
   }
   drawWorld();
   drawOverlay();
 }
 
-function updateCampaignNote() {
-  if (!game.campaign.lockedCharacterId) {
-    campaignNote.textContent = "Your choice locks for the full 100-level campaign.";
-    return;
-  }
-  const character = getCharacter();
-  campaignNote.textContent = `Campaign locked to ${character.name}. Press New Campaign to choose another Pokemon.`;
-}
-
 function updateHud() {
-  const character = getCharacter();
-  levelValue.textContent = `${game.stageIndex + 1} / ${STAGE_COUNT}`;
-  worldValue.textContent = game.currentStage ? game.currentStage.world.name : WORLDS[0].name;
-  characterValue.textContent = character.name;
-  levelName.textContent = game.currentStage ? game.currentStage.name : getStageName(0);
+  const currentCharacter = getCharacter();
+  levelValue.textContent = `${game.levelIndex + 1} / ${LEVEL_NAMES.length}`;
+  characterValue.textContent = currentCharacter.name;
+  levelName.textContent = game.currentLevel ? game.currentLevel.name : LEVEL_NAMES[0];
 
-  if (game.player && game.currentStage) {
-    partsValue.textContent = `${game.player.partsCollected} / ${game.currentStage.partsRequired}`;
-    powerValue.textContent = `${game.player.power} / ${game.player.powerMax}`;
-    heartValue.textContent = `${Math.max(0, game.player.hearts)} / ${game.player.maxHearts}`;
-    if (game.currentStage.bossStage && game.currentStage.boss && !game.currentStage.boss.defeated) {
-      bossValue.textContent = `${game.currentStage.boss.name} ${game.currentStage.boss.hp}/${game.currentStage.boss.maxHp}`;
-    } else {
-      bossValue.textContent = game.currentStage.bossStage ? "Defeated" : "None";
-    }
+  if (game.player && game.currentLevel) {
+    stormValue.textContent = `${game.player.stormsCollected} / ${game.currentLevel.requiredStorms}`;
+    skillValue.textContent = `${game.player.skillCharges}`;
+    heartValue.textContent = `${Math.max(0, game.player.hearts)} / 4`;
   } else {
-    partsValue.textContent = "0 / 0";
-    powerValue.textContent = `0 / ${character.basePowerCap}`;
-    heartValue.textContent = "5 / 5";
-    bossValue.textContent = "None";
+    stormValue.textContent = "0 / 0";
+    skillValue.textContent = "0";
+    heartValue.textContent = "4 / 4";
   }
 
   messageLine.textContent = getMessageLine();
 }
 
 function updateButtons() {
-  restartButton.disabled = !game.campaign.lockedCharacterId || game.screen === "recovering";
-  newCampaignButton.disabled = false;
+  primaryButton.disabled = false;
+  restartButton.disabled = game.screen === "menu";
 
   if (game.screen === "menu") {
-    primaryButton.textContent = "Start 100-Level Campaign";
+    primaryButton.textContent = "Start 25-Level Run";
   } else if (game.screen === "playing") {
     primaryButton.textContent = "Pause";
   } else if (game.screen === "paused") {
     primaryButton.textContent = "Resume";
   } else if (game.screen === "stageClear") {
-    primaryButton.textContent = "Next Stage";
+    primaryButton.textContent = "Next Level";
   } else if (game.screen === "recovering") {
     primaryButton.textContent = "Restarting...";
     primaryButton.disabled = true;
-    return;
+    restartButton.disabled = true;
   } else if (game.screen === "gameComplete") {
     primaryButton.textContent = "Play Again";
   }
-
-  primaryButton.disabled = false;
 }
 
 function renderCharacterPicker() {
   characterPicker.innerHTML = "";
-  const locked = Boolean(game.campaign.lockedCharacterId);
-  const activeId = getCurrentCharacterId();
-
   CHARACTERS.forEach((character) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "character-card";
-    if (character.id === activeId) {
+    if (character.id === game.selectedCharacterId) {
       card.classList.add("is-selected");
-    }
-    if (locked && character.id !== activeId) {
-      card.classList.add("is-locked");
     }
     card.innerHTML = `
       <div class="character-name">
@@ -2221,16 +1295,17 @@ function renderCharacterPicker() {
         <span class="character-badge">${character.skillName}</span>
       </div>
       <div class="character-copy">${character.blurb}</div>
-      <div class="character-stats">${character.resourceName} | ${character.passive}</div>
+      <div class="character-stats">Speed ${character.speed.toFixed(1)} | Jump ${character.jump.toFixed(1)} | ${character.title}</div>
     `;
     card.addEventListener("click", () => {
-      if (game.campaign.lockedCharacterId) {
-        return;
-      }
       game.selectedCharacterId = character.id;
       renderCharacterPicker();
-      game.player = createPlayer(character, game.currentStage.spawn);
-      updateCampaignNote();
+      if (game.currentLevel) {
+        loadLevel(game.levelIndex);
+        if (game.screen === "menu") {
+          game.screen = "menu";
+        }
+      }
       updateHud();
     });
     characterPicker.appendChild(card);
@@ -2239,36 +1314,35 @@ function renderCharacterPicker() {
 
 function renderProgressStrip() {
   progressStrip.innerHTML = "";
-  for (let index = 0; index < STAGE_COUNT; index += 1) {
+  LEVEL_NAMES.forEach((name, index) => {
     const pill = document.createElement("button");
     pill.type = "button";
     pill.className = "level-pill";
-    const unlocked = index <= game.highestUnlocked || Boolean(game.stageResults[index]);
-    if (index === game.stageIndex) {
+    const available = index <= game.highestUnlocked || game.levelResults[index];
+
+    if (index === game.levelIndex) {
       pill.classList.add("is-current");
     }
-    if (game.stageResults[index]) {
+    if (game.levelResults[index]) {
       pill.classList.add("is-complete");
     }
-    if (getStageNumberInWorld(index) === STAGES_PER_WORLD) {
-      pill.classList.add("is-boss");
-    }
-    if (!unlocked) {
+    if (!available) {
       pill.classList.add("is-locked");
       pill.disabled = true;
     }
+
     pill.textContent = `${index + 1}`;
-    pill.title = getStageName(index);
+    pill.title = name;
     pill.addEventListener("click", () => {
-      if (!unlocked || !game.campaign.lockedCharacterId) {
+      if (!available) {
         return;
       }
-      loadStage(index);
+      loadLevel(index);
       game.screen = "playing";
       updateButtons();
     });
     progressStrip.appendChild(pill);
-  }
+  });
 }
 
 function setupInput() {
@@ -2288,13 +1362,11 @@ function setupInput() {
         game.input.jumpQueued = true;
       }
     } else if (key === "x" && !event.repeat) {
-      game.input.powerQueued = true;
+      game.input.skillQueued = true;
     } else if (key === "enter" && !event.repeat) {
       handlePrimaryAction();
     } else if (key === "p" && !event.repeat) {
       pauseToggle();
-    } else if (key === "n" && !event.repeat) {
-      newCampaign();
     }
   });
 
@@ -2320,19 +1392,17 @@ function loop() {
 }
 
 function init() {
-  game.stageTemplates = Array.from({ length: STAGE_COUNT }, (_, index) => buildStage(index));
-  game.currentStage = cloneStage(game.stageTemplates[0]);
-  game.player = createPlayer(getCharacter(game.selectedCharacterId), game.currentStage.spawn);
+  game.levelTemplates = LEVEL_NAMES.map((_, index) => buildLevel(index));
+  game.currentLevel = cloneLevel(game.levelTemplates[0]);
+  game.player = createPlayer(getCharacter(), game.currentLevel.spawn);
   renderCharacterPicker();
   renderProgressStrip();
-  updateCampaignNote();
   updateButtons();
   updateHud();
   setupInput();
 
   primaryButton.addEventListener("click", handlePrimaryAction);
-  restartButton.addEventListener("click", restartStage);
-  newCampaignButton.addEventListener("click", newCampaign);
+  restartButton.addEventListener("click", restartLevel);
 
   requestAnimationFrame(loop);
 }

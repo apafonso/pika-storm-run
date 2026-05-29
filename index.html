@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pokemon Comet Quest</title>
+  <title>Pika Storm Run</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,85 +11,66 @@
   <div class="sky-glow sky-glow-right"></div>
   <main class="layout">
     <section class="info-panel">
-      <p class="eyebrow">Pokemon Commander Adventure</p>
-      <h1>Pokemon Comet Quest</h1>
+      <p class="eyebrow">Pokemon Platformer</p>
+      <h1>Pika Storm Run</h1>
       <p class="lede">
-        Pick Pikachu, Bulbasaur, Charmander, or Squirtle and commit to a full 100-level expedition.
-        Each hero has a different movement power, ammo pickup, and combat style. Search every stage for comet parts,
-        then defeat bosses like Meowth, Lapras, Charizard, and Mewtwo.
+        A self-contained 25-level platform game inspired by Pokemon and classic side-scrollers.
+        Pick Pikachu, Charmander, or Squirtle, catch storm sparks, spend skill charges, and avoid shadow Pokemon.
       </p>
-
-      <div class="panel-card">
-        <h2>Mission</h2>
-        <p>Explore 10 worlds and clear 100 platforming stages.</p>
-        <p>Collect every comet part in each level to unlock the exit gate.</p>
-        <p>Every 10th stage is a boss lair that awards a core part and a campaign upgrade.</p>
-      </div>
 
       <div class="panel-card">
         <h2>Controls</h2>
         <p><span class="key">A</span> <span class="key">D</span> or <span class="key">Left</span> <span class="key">Right</span> to move</p>
         <p><span class="key">W</span> <span class="key">Up</span> or <span class="key">Space</span> to jump</p>
-        <p><span class="key">X</span> to use your Pokemon power</p>
-        <p><span class="key">Enter</span> to start, pause, or advance</p>
-        <p><span class="key">N</span> to begin a new campaign and unlock character choice</p>
+        <p><span class="key">X</span> to use your Pokemon skill</p>
+        <p><span class="key">Enter</span> to use the main action button</p>
       </div>
 
       <div class="panel-card">
         <h2>Choose Your Pokemon</h2>
-        <p id="campaignNote" class="lock-note">Your choice locks for the full 100-level campaign.</p>
         <div class="character-picker" id="characterPicker"></div>
       </div>
 
       <div class="actions">
-        <button id="primaryButton" class="button button-primary">Start 100-Level Campaign</button>
-        <button id="restartButton" class="button button-secondary">Restart Stage</button>
-        <button id="newCampaignButton" class="button button-ghost">New Campaign</button>
+        <button id="primaryButton" class="button button-primary">Start 25-Level Run</button>
+        <button id="restartButton" class="button button-secondary">Restart Level</button>
       </div>
 
-      <p id="messageLine" class="message-line">Choose a Pokemon. The choice locks for the whole run.</p>
+      <p id="messageLine" class="message-line">Pick a Pokemon and press start.</p>
     </section>
 
     <section class="game-panel">
       <div class="hud">
         <div class="hud-item">
           <span class="hud-label">Stage</span>
-          <strong id="levelValue">1 / 100</strong>
+          <strong id="levelValue">1 / 25</strong>
         </div>
         <div class="hud-item">
-          <span class="hud-label">World</span>
-          <strong id="worldValue">Viridian Fields</strong>
-        </div>
-        <div class="hud-item">
-          <span class="hud-label">Hero</span>
+          <span class="hud-label">Critter</span>
           <strong id="characterValue">Pikachu</strong>
         </div>
         <div class="hud-item">
-          <span class="hud-label">Parts</span>
-          <strong id="partsValue">0 / 0</strong>
+          <span class="hud-label">Storms</span>
+          <strong id="stormValue">0 / 0</strong>
         </div>
         <div class="hud-item">
-          <span class="hud-label">Power</span>
-          <strong id="powerValue">0 / 0</strong>
+          <span class="hud-label">Skill</span>
+          <strong id="skillValue">0</strong>
         </div>
         <div class="hud-item">
           <span class="hud-label">Hearts</span>
-          <strong id="heartValue">5 / 5</strong>
-        </div>
-        <div class="hud-item">
-          <span class="hud-label">Boss</span>
-          <strong id="bossValue">None</strong>
+          <strong id="heartValue">4 / 4</strong>
         </div>
       </div>
 
       <div class="canvas-shell">
-        <canvas id="gameCanvas" width="960" height="540" aria-label="Pokemon Comet Quest game"></canvas>
+        <canvas id="gameCanvas" width="960" height="540" aria-label="Pika Storm Run game"></canvas>
       </div>
 
       <div class="panel-card progress-card">
         <div class="progress-header">
-          <h2>100 Levels</h2>
-          <span id="levelName">Viridian Fields: Scout Path</span>
+          <h2>25 Levels</h2>
+          <span id="levelName">Meadow Spark</span>
         </div>
         <div id="progressStrip" class="progress-strip"></div>
       </div>
